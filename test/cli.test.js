@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -30,7 +30,7 @@ test("init creates the standard core without harness bootstrap files", async () 
 });
 
 test("a task can contain several related projects and returns compact context", async () => {
-  const root = await initializedWorkspace();
+  const root = await onboardedWorkspace();
   assertSuccess(awb(["--root", root, "project", "add", "portal", "--path", "src/portal", "--create"]));
   assertSuccess(awb(["--root", root, "project", "add", "order-api", "--path", "src/order-api", "--create"]));
   assertSuccess(
@@ -93,7 +93,7 @@ test("a task can contain several related projects and returns compact context", 
 });
 
 test("provider bindings add compact external references without loading provider data", async () => {
-  const root = await initializedWorkspace();
+  const root = await onboardedWorkspace();
   assertSuccess(awb(["--root", root, "project", "add", "portal", "--path", "src/portal", "--create"]));
   assertSuccess(
     awb([
@@ -290,8 +290,8 @@ test("external sources keep portable metadata separate from the machine-local pa
   assert.equal(resolved.resolvedPath, externalSource);
 });
 
-test("CS documentation task enforces write scope and closes only after verified artifacts and gates", async () => {
-  const root = await initializedWorkspace();
+test("a documentation task enforces write scope and closes only after verified artifacts and gates", async () => {
+  const root = await onboardedWorkspace();
   assertSuccess(
     awb([
       "--root",
@@ -427,7 +427,7 @@ test("CS documentation task enforces write scope and closes only after verified 
 });
 
 test("artifact paths cannot escape the project source root on any platform", async () => {
-  const root = await initializedWorkspace();
+  const root = await onboardedWorkspace();
   assertSuccess(awb(["--root", root, "project", "add", "app", "--path", "src/app", "--create"]));
   assertSuccess(
     awb([
@@ -480,7 +480,7 @@ test("artifact paths cannot escape the project source root on any platform", asy
 });
 
 test("task identifiers are stored uppercase regardless of the casing supplied", async () => {
-  const root = await initializedWorkspace();
+  const root = await onboardedWorkspace();
   assertSuccess(awb(["--root", root, "project", "add", "app", "--path", "src/app", "--create"]));
   assertSuccess(
     awb([
@@ -592,7 +592,7 @@ test("--json reports failures as JSON and exit codes separate failure from an un
 });
 
 test("migrate canonicalizes lowercase task files and repoints everything at them", async () => {
-  const root = await initializedWorkspace();
+  const root = await onboardedWorkspace();
   assertSuccess(awb(["--root", root, "project", "add", "app", "--path", "src/app", "--create"]));
   assertSuccess(
     awb([
@@ -721,7 +721,7 @@ test("validate enforces the published JSON schemas, not only its own rules", asy
 });
 
 test("knowledge scope filters are canonicalized the same way stored scopes are", async () => {
-  const root = await initializedWorkspace();
+  const root = await onboardedWorkspace();
   assertSuccess(awb(["--root", root, "project", "add", "app", "--path", "src/app", "--create"]));
   assertSuccess(
     awb([
@@ -845,7 +845,7 @@ test("capability catalogs are discoverable for every kind", async () => {
 });
 
 test("a task cannot name a role, skill, or workflow that does not exist", async () => {
-  const root = await initializedWorkspace();
+  const root = await onboardedWorkspace();
   assertSuccess(awb(["--root", root, "project", "add", "app", "--path", "src/app", "--create"]));
 
   const badRole = awb([
@@ -873,7 +873,7 @@ test("a task cannot name a role, skill, or workflow that does not exist", async 
 });
 
 test("validate errors on a dangling reference from an active task and warns for a closed one", async () => {
-  const root = await initializedWorkspace();
+  const root = await onboardedWorkspace();
   assertSuccess(awb(["--root", root, "project", "add", "app", "--path", "src/app", "--create"]));
   assertSuccess(
     awb([
@@ -904,6 +904,23 @@ test("validate errors on a dangling reference from an active task and warns for 
     true,
     validation.warnings.join("; ")
   );
+});
+
+test("a role the user adds to the catalog is accepted by task create", async () => {
+  const root = await onboardedWorkspace();
+  assertSuccess(awb(["--root", root, "project", "add", "app", "--path", "src/app", "--create"]));
+  await mkdir(path.join(root, "roles", "product-owner"), { recursive: true });
+  await writeFile(path.join(root, "roles", "product-owner", "ROLE.md"), "# Role: Product Owner\n", "utf8");
+
+  assertSuccess(
+    awb([
+      "--root", root, "task", "create", "--id", "TASK-CUSTOM-ROLE", "--title", "X",
+      "--role", "product-owner", "--project", "app"
+    ])
+  );
+
+  const task = JSON.parse(await readFile(path.join(root, "work", "tasks", "TASK-CUSTOM-ROLE.json"), "utf8"));
+  assert.equal(task.primaryRole, "product-owner");
 });
 
 test("profile status reports the gate, the questions, and the catalog", async () => {
@@ -1020,6 +1037,46 @@ test("profile complete refuses to overwrite a hand-edited profile", async () => 
   assert.match(await readFile(path.join(root, "user", "PROFILE.md"), "utf8"), /Hand written/);
 });
 
+test("task create is blocked until the user has been interviewed", async () => {
+  const root = await initializedWorkspace();
+  assertSuccess(awb(["--root", root, "project", "add", "app", "--path", "src/app", "--create"]));
+
+  const gated = awb([
+    "--root", root, "task", "create", "--id", "TASK-GATE", "--title", "X",
+    "--role", "developer", "--project", "app"
+  ]);
+  assert.equal(gated.status, 1);
+  assert.match(gated.stderr, /no user profile yet/);
+  assert.deepEqual(await readdir(path.join(root, "work", "tasks")), [], "no task file may be left behind");
+
+  // The escape hatch exists for automation.
+  assertSuccess(
+    awb([
+      "--root", root, "task", "create", "--id", "TASK-SKIP", "--title", "X",
+      "--role", "developer", "--project", "app", "--skip-onboarding"
+    ])
+  );
+
+  // Reading and diagnosing must keep working before onboarding.
+  assertSuccess(awb(["--root", root, "validate"]));
+  assertSuccess(awb(["--root", root, "role", "list"]));
+  assertSuccess(awb(["--root", root, "task", "list"]));
+
+  assertSuccess(
+    awb([
+      "--root", root, "profile", "complete",
+      "--name", "Tin", "--role", "developer", "--language", "vi",
+      "--responsibility", "Ship the POS integrations"
+    ])
+  );
+  assertSuccess(
+    awb([
+      "--root", root, "task", "create", "--id", "TASK-OK", "--title", "X",
+      "--role", "developer", "--project", "app"
+    ])
+  );
+});
+
 function awb(args) {
   return spawnSync(process.execPath, [cli, ...args], {
     cwd: repositoryRoot,
@@ -1040,6 +1097,18 @@ async function tempWorkspacePath() {
 async function initializedWorkspace() {
   const root = await tempWorkspacePath();
   assertSuccess(awb(["init", "--root", root, "--name", "Test Workbench"]));
+  return root;
+}
+
+async function onboardedWorkspace() {
+  const root = await initializedWorkspace();
+  assertSuccess(
+    awb([
+      "--root", root, "profile", "complete",
+      "--name", "Test User", "--role", "developer", "--language", "en",
+      "--responsibility", "Exercise the Workbench in tests"
+    ])
+  );
   return root;
 }
 

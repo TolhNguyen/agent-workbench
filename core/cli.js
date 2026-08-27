@@ -45,7 +45,7 @@ import { callProviderTool, listProviderTools, probeProvider, recallCoreMemory, s
 // only known once positionals are parsed, and whether a flag consumes the next
 // token has to be decided during that same pass.
 const BOOLEAN_OPTIONS = new Set([
-  "json", "create", "replace", "stdin", "help", "verified", "force", "allow-nested"
+  "json", "create", "replace", "stdin", "help", "verified", "force", "allow-nested", "skip-onboarding"
 ]);
 
 const GLOBAL_OPTIONS = ["root", "json", "output", "help"];
@@ -71,7 +71,8 @@ const COMMAND_OPTIONS = {
   "workflow show": [],
   "task create": [
     "id", "title", "objective", "audience", "role", "supporting-role", "primary", "project",
-    "skill", "workflow", "browser", "read", "write", "deliverable", "quality-gate", "constraint", "done"
+    "skill", "workflow", "browser", "read", "write", "deliverable", "quality-gate", "constraint", "done",
+    "skip-onboarding"
   ],
   "task list": ["status"],
   "task context": [],
@@ -390,7 +391,8 @@ async function taskCommand(root, action, positionals, parsed) {
       deliverables: values(parsed, "deliverable"),
       qualityGates: values(parsed, "quality-gate"),
       constraints: values(parsed, "constraint"),
-      doneWhen: values(parsed, "done")
+      doneWhen: values(parsed, "done"),
+      skipOnboarding: has(parsed, "skip-onboarding")
     });
     return {
       data: task,
@@ -1002,6 +1004,7 @@ Exit codes:
                   [--primary <id>] [--audience <text>] [--browser <url>]
                   [--read project:<id>] [--write project:<id>]
                   [--deliverable <id>] [--quality-gate <id>]
+                  [--skip-onboarding]
   awb task list [--status active]
   awb task context <task-id>
   awb task gate-pass <task-id> <gate-id> [--note <text>]

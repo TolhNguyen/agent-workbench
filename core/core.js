@@ -233,6 +233,23 @@ export async function getOnboarding(root) {
   return { complete: onboarding.complete === true, completedAt: onboarding.completedAt ?? null };
 }
 
+// ONBOARDING_QUESTIONS is a constant workspace owners are expected to edit.
+// A question naming a catalog that does not exist would otherwise only
+// surface as `TypeError: Cannot read properties of undefined (reading
+// 'join')` inside the text formatter — and never at all on the --json path,
+// which never calls that formatter. Failing here catches it in both.
+export function assertQuestionCatalogs(questions, catalog) {
+  const validKeys = Object.keys(catalog);
+  for (const question of questions) {
+    if (question.catalog !== undefined && !validKeys.includes(question.catalog)) {
+      throw new Error(
+        `Onboarding question "${question.id}" names an unknown catalog: "${question.catalog}". ` +
+          `Valid catalogs: ${validKeys.join(", ")}.`
+      );
+    }
+  }
+}
+
 export async function profileStatus(root) {
   const { complete, completedAt } = await getOnboarding(root);
   const [roles, skills, workflows] = await Promise.all([
@@ -240,12 +257,14 @@ export async function profileStatus(root) {
     listCapabilities(root, "skill"),
     listCapabilities(root, "workflow")
   ]);
+  const catalog = { roles, skills, workflows };
+  assertQuestionCatalogs(ONBOARDING_QUESTIONS, catalog);
   return {
     complete,
     completedAt,
     profilePath: USER_PROFILE_PATH,
     questions: structuredClone(ONBOARDING_QUESTIONS),
-    catalog: { roles, skills, workflows }
+    catalog
   };
 }
 
@@ -593,6 +612,16 @@ export async function listTasks(root) {
 }
 
 export async function createTask(root, input) {
+  // The gate lives here rather than only in START_HERE.md, so an agent that
+  // never reads the protocol file still cannot start work on a guess.
+  if (!input.skipOnboarding) {
+    const { complete } = await getOnboarding(root);
+    if (!complete) {
+      throw new Error(
+        "This workspace has no user profile yet. Run `awb profile status` and complete the interview, or pass --skip-onboarding for a one-off task."
+      );
+    }
+  }
   const id = normalizeId(input.id || makeId("TASK", { uppercase: true }), "Task ID", { uppercase: true });
   const target = `work/tasks/${id}.json`;
   if (await exists(path.join(root, target))) throw new Error(`Task already exists: ${id}`);
