@@ -1,416 +1,260 @@
-# Agent Workbench 0.3
+# Agent Workbench 0.4
 
-Agent Workbench is one self-hosted Git repository that represents the user's
-working point of view. Open this repository root in Codex, Claude Code,
-Antigravity, or another filesystem-capable agent harness.
+Agent Workbench là **không gian làm việc của bạn với AI**. Nó ghi nhớ bạn là ai,
+bạn phụ trách những hệ thống nào, và những gì đã học được — để mỗi lần bắt đầu
+một việc mới, trợ lý AI không phải đoán lại từ đầu.
 
-The same root contains:
+Toàn bộ nằm trong một thư mục duy nhất trên máy bạn. Không server, không
+database, không cần kết nối mạng để chạy.
 
-- the small deterministic Workbench Core;
-- the user's profile, roles, skills, workflows, and approved knowledge;
-- task contracts and verified output records;
-- every managed source, Git submodule, or portable external-source reference.
+> Bạn đang cầm bản đã cài sẵn. **Không tạo workspace mới ở nơi khác** — cứ mở
+> thẳng thư mục này bằng Claude Code, Codex, hoặc trợ lý AI nào đọc được tệp.
 
-Core itself has no server, database, semantic index, MCP server, or harness
-adapter. Version 0.3 adds a small Knowledge Provider Interface so an optional
-external read-only recall service can be called explicitly without becoming
-canonical state.
+---
 
-## Ready after unzip or clone
+## Bắt đầu trong 5 phút
 
-This repository is already an initialized workspace. Do not create a second
-workspace outside it.
+### Bước 0 — Kiểm tra máy
+
+Cần **Node.js phiên bản 20 trở lên**. Kiểm tra:
 
 ```bash
-cd Agent-Workbench
-node bin/awb.js validate
-node bin/awb.js profile build
+node --version
+node bin/awb.js version
 ```
 
-## First run
+Kết quả mong đợi: `v20.x` (hoặc mới hơn) và `0.4.0`. Nếu lệnh thứ hai báo lỗi,
+bạn đang đứng sai thư mục — hãy `cd` vào thư mục chứa tệp này.
 
-A new workspace has no user profile. Before the first task, the agent runs:
+Mọi lệnh dưới đây đều chạy từ thư mục này.
+
+### Bước 1 — Kiểm tra không gian làm việc còn nguyên vẹn
+
+```bash
+node bin/awb.js validate
+```
+
+```text
+Workspace is valid.
+Name: Agent Workbench
+Format: 0.3
+Counts: 0 projects, 0 relationships, 0 knowledge items, 0 artifacts
+```
+
+Thấy `Workspace is valid.` là xong bước này.
+
+### Bước 2 — Giới thiệu bản thân (chỉ làm một lần)
+
+Đây là bước quan trọng nhất. Trước khi làm được việc gì, workspace cần biết bạn
+là ai — nếu không, trợ lý sẽ đoán, và đoán sai.
 
 ```bash
 node bin/awb.js profile status
 ```
 
-If onboarding is incomplete, the command returns the interview questions and
-the catalog of available roles and skills. The agent asks the user those
-questions in the user's own language and records the answers:
+```text
+Onboarding is not complete. Interview the user with these questions, then
+record the answers with `awb profile complete`.
+
+- name (required): What should I call you?
+- role (required): Which role best describes your main work here?
+  Choose from roles: developer, reviewer, technical-writer
+- language (required): Which language should I write and talk to you in?
+- responsibilities (required): What are you responsible for day to day?
+...
+```
+
+**Cách dùng thông thường:** bảo trợ lý AI *"đọc START_HERE.md và bắt đầu"*. Nó sẽ
+tự chạy lệnh trên, hỏi bạn từng câu bằng tiếng Việt, rồi tự ghi lại. Bạn chỉ việc
+trả lời.
+
+**Nếu muốn tự nhập:**
 
 ```bash
 node bin/awb.js profile complete \
-  --name "..." --role developer --language vi \
-  --responsibility "..." --system order-api --skill debugging
+  --name "Nguyễn Văn A" \
+  --role developer \
+  --language vi \
+  --responsibility "Bảo trì hệ thống bán hàng" \
+  --system "order-api" \
+  --skill debugging
 ```
-
-Until this is done, `awb task create` refuses to run. Automation that must
-bypass the interview can pass `--skip-onboarding`.
-
-Inspect the catalog at any time:
-
-```bash
-node bin/awb.js role list
-node bin/awb.js skill show debugging
-```
-
-To publish an extracted copy as a new repository:
-
-```bash
-git init
-git add .
-git commit -m "Initialize Agent Workbench"
-git branch -M main
-git remote add origin <agent-workbench-repository-url>
-git push -u origin main
-```
-
-Add existing development repositories as submodules after this initial commit.
-
-Requirements:
-
-- Node.js 20 or newer
-- no third-party packages
-
-## Repository layout
 
 ```text
-Agent-Workbench/
-├── .awb/                    workspace identity
-├── core/                    Workbench implementation
-├── bin/                     CLI entry point
-├── schemas/                 portable JSON contracts
-├── docs/                    Core specification
-├── user/                    user profile and principles
-├── roles/                   roles added directly by ID
-├── skills/                  skills added directly by ID
-├── workflows/               workflows added directly by ID
-├── projects/                project registry
-├── relationships/           project relationships
-├── knowledge/               approved knowledge and optional providers
-├── work/                    tasks, artifacts, proposals
-├── profile/                 generated HTML profile
-└── src/                     user-managed sources only (not committed)
+Profile recorded: user/PROFILE.md
+Name: Nguyễn Văn A
+Role: developer
+Language: vi
 ```
 
-Normal user tasks must not modify `core/`, `bin/`, `schemas/`, or `test/`.
+Câu trả lời được lưu ở `user/PROFILE.md` — tệp văn bản thường, sửa tay lúc nào
+cũng được.
 
-## Source modes
+### Bước 3 — Khai báo dự án đầu tiên
 
-### Managed source
-
-Use for documentation projects or source that belongs to this Git repository:
+"Dự án" là một codebase, một tập tài liệu, hay bất cứ thứ gì bạn làm việc trên đó.
 
 ```bash
-node bin/awb.js project add hvh-user-guides \
-  --name "HVH User Guides" \
-  --path src/hvh-user-guides \
-  --mode managed \
-  --create
+node bin/awb.js project add order-api --name "Order API" --path src/order-api --create
 ```
-
-### Git submodule
-
-Use when a development source already has its own Git repository:
-
-```bash
-git submodule add <frontend-repository-url> src/HVH_FRONTEND_REACT
-
-node bin/awb.js project add hvh-frontend-react \
-  --name "HVH Frontend React" \
-  --path src/HVH_FRONTEND_REACT \
-  --mode submodule \
-  --repo <frontend-repository-url>
-```
-
-Clone a Workbench with its source repositories using:
-
-```bash
-git clone --recurse-submodules <agent-workbench-repository-url>
-```
-
-### External source
-
-Use when a source must remain outside the Workbench directory:
-
-```bash
-node bin/awb.js project add legacy-app \
-  --name "Legacy App" \
-  --external-path "D:\\Projects\\LegacyApp" \
-  --repo <legacy-repository-url>
-```
-
-The command creates:
 
 ```text
-src/legacy-app.source.json                 portable and committed
-src/.external/legacy-app.local.json        machine-local and ignored by Git
-src/<any-other-source>/                    working directory, ignored by Git
+Project added: order-api
+Name: Order API
+Mode: managed
+Path: src/order-api
 ```
 
-Resolve the effective source location with:
+Mã nguồn thật đặt trong `src/order-api/`. Lưu ý: **thư mục mã nguồn không được
+commit lên Git** của workspace này (xem [Git](#code-của-tôi-có-bị-đẩy-lên-git-không)).
 
-```bash
-node bin/awb.js project resolve legacy-app
-```
-
-## Project relationships
-
-```bash
-node bin/awb.js relation add \
-  hvh-user-guides documents hvh-frontend-react \
-  --description "The user guide documents the marketing account UI"
-```
-
-Relationships are directed, typed, and returned with task context. Related
-projects are not silently added to a task's write scope.
-
-## Create a constrained CS documentation task
+### Bước 4 — Tạo việc cần làm
 
 ```bash
 node bin/awb.js task create \
-  --id TASK-CS-GUIDE-001 \
-  --title "Advertising account end-user guide" \
-  --objective "Create a Word guide with real screenshots" \
-  --audience end-user \
-  --role cs \
-  --primary hvh-user-guides \
-  --project hvh-user-guides \
-  --project hvh-frontend-react \
-  --browser https://dev.hvh.hvnet.vn \
-  --read project:hvh-user-guides \
-  --read project:hvh-frontend-react \
-  --write project:hvh-user-guides/marketing-accounts \
-  --deliverable docx \
-  --deliverable markdown \
-  --quality-gate render-docx \
-  --quality-gate check-sensitive-data \
-  --constraint "Do not modify DEV source" \
-  --constraint "Do not persist login credentials"
+  --id TASK-DEMO \
+  --title "Sửa lỗi tính phí ship" \
+  --role developer \
+  --project order-api \
+  --deliverable patch \
+  --quality-gate tests-pass
 ```
-
-Get compact context without loading full knowledge bodies:
-
-```bash
-node bin/awb.js task context TASK-CS-GUIDE-001
-```
-
-Task access scopes use:
 
 ```text
-project:<project-id>
-project:<project-id>/<allowed-subdirectory>
+Task created: TASK-DEMO
+Role: developer
+Projects: order-api
 ```
 
-Core code cannot be added as a task write scope because it is not a registered
-project under `src/`.
+`--deliverable` là thứ bạn cam kết giao ra. `--quality-gate` là điều kiện phải
+đạt trước khi được đóng việc. Cả hai đều do bạn tự đặt tên.
 
-## Register and verify outputs
-
-After generating and visually checking the document:
+Khi cần trợ lý nạp đúng bối cảnh cho việc này:
 
 ```bash
-node bin/awb.js artifact add TASK-CS-GUIDE-001 \
-  --project hvh-user-guides \
-  --path marketing-accounts/docs/guide.docx \
-  --kind docx \
-  --verified \
-  --verification-note "Rendered pages inspected"
-
-node bin/awb.js artifact add TASK-CS-GUIDE-001 \
-  --project hvh-user-guides \
-  --path marketing-accounts/docs/guide.md \
-  --kind markdown \
-  --verified
-
-node bin/awb.js task gate-pass TASK-CS-GUIDE-001 render-docx
-node bin/awb.js task gate-pass TASK-CS-GUIDE-001 check-sensitive-data
-node bin/awb.js task verify TASK-CS-GUIDE-001
-node bin/awb.js task close TASK-CS-GUIDE-001
+node bin/awb.js task context TASK-DEMO
 ```
 
-A task cannot close normally while a deliverable, artifact file, artifact
-verification, or quality gate is missing.
+Lệnh này trả về **tham chiếu**, không đổ hết nội dung ra — nên nó không làm ngợp
+cửa sổ ngữ cảnh của trợ lý.
 
-## Knowledge and learning
-
-Search returns compact metadata and snippets:
+### Bước 5 — Làm xong thì ghi nhận và đóng
 
 ```bash
-node bin/awb.js knowledge search "advertising account"
+# Ghi nhận sản phẩm đã làm ra
+node bin/awb.js artifact add TASK-DEMO --project order-api --path ship.js --kind patch --verified
+
+# Xác nhận điều kiện chất lượng đã đạt
+node bin/awb.js task gate-pass TASK-DEMO tests-pass
+
+# Kiểm tra rồi đóng
+node bin/awb.js task verify TASK-DEMO
+node bin/awb.js task close TASK-DEMO
 ```
 
-Full content requires an explicit read:
+```text
+Task is verified: TASK-DEMO
+Artifacts: 1
+Task closed: TASK-DEMO
+Verified: true
+```
+
+`task close` **từ chối** đóng nếu còn thiếu sản phẩm, còn artifact chưa xác minh,
+hoặc còn điều kiện chất lượng chưa đạt. Đó là chủ ý.
+
+---
+
+## Xem mình đang có sẵn những gì
 
 ```bash
-node bin/awb.js knowledge read <knowledge-id>
+node bin/awb.js role list        # vai trò
+node bin/awb.js skill list       # kỹ năng
+node bin/awb.js workflow list    # quy trình
+node bin/awb.js skill show debugging   # xem chi tiết một mục
 ```
 
-Agent-discovered experience enters as a proposal:
+Bộ đi kèm là **bộ khởi động để bạn thay**, không phải danh mục hoàn chỉnh. Thêm
+cái của riêng bạn bằng cách tạo thư mục:
 
 ```bash
-node bin/awb.js memory propose \
-  --task TASK-CS-GUIDE-001 \
-  --scope project:hvh-user-guides \
-  --title "End-user documentation audience" \
-  --text "Confirm the audience before choosing internal or end-user content."
-
-node bin/awb.js memory approve <proposal-id> \
-  --knowledge-id hvh-guides.confirm-audience
+mkdir -p roles/product-owner
+# rồi viết roles/product-owner/ROLE.md mô tả vai trò đó
 ```
 
-## Optional TencentDB Agent Memory provider
+Xong là dùng được ngay: `--role product-owner`.
 
-Workbench remains the source of truth in Git. TencentDB Agent Memory can be an
-optional derived recall/index layer; Workbench calls MemoryKnowledge directly
-and does not use MemoryProxy or change the model settings of Codex, Claude Code,
-or Antigravity.
-
-Register a local MemoryKnowledge v3 endpoint:
+## Ghi lại điều đã học
 
 ```bash
-node bin/awb.js provider add tencent-local \
-  --type tencentdb-agent-memory \
-  --knowledge-url http://127.0.0.1:8424/v3 \
-  --core-url http://127.0.0.1:8420 \
-  --service-id default
+node bin/awb.js memory propose --scope project:order-api \
+  --title "Phí ship tính theo khu vực" \
+  --text "Luôn kiểm tra tỉnh/thành trước khi tính phí."
+
+node bin/awb.js memory list
+node bin/awb.js memory approve LEARN-...
 ```
 
-If the deployment needs a user key, store only its environment-variable name:
+Điều đã học **phải được bạn duyệt** mới trở thành kiến thức chính thức. Trợ lý
+không tự ghi thẳng vào bộ nhớ dài hạn.
 
-```bash
-node bin/awb.js provider add tencent-secure \
-  --knowledge-url https://memory.example.com/v3 \
-  --core-url https://memory-core.example.com \
-  --service-id my-team \
-  --knowledge-auth-env AWB_TENCENT_USER_KEY \
-  --core-auth-env AWB_TENCENT_CORE_KEY
-```
+---
 
-The values of these variables are read at runtime and are never written to
-Workbench. MemoryKnowledge receives the user key; MemoryCore receives its API
-key as a Bearer token. URLs containing usernames or passwords are rejected.
+## Gặp lỗi thì làm gì
 
-Bind a Tencent wiki or code-graph knowledge resource to a registered project:
+Mọi thông báo lỗi đều nói rõ cách xử lý. Dưới đây là những lỗi hay gặp nhất:
 
-```bash
-node bin/awb.js provider bind tencent-local \
-  --project hvh-frontend-react \
-  --knowledge-id <tencent-knowledge-id>
-```
+| Thông báo | Nghĩa là gì | Làm gì |
+|---|---|---|
+| `No Agent Workbench found. Run \`awb init\` or pass --root.` | Bạn đang đứng ngoài thư mục workspace | `cd` về thư mục chứa tệp README này |
+| `This workspace has no user profile yet...` | Chưa làm Bước 2 | Chạy `profile status` rồi `profile complete` |
+| `Unknown role: dev. Available: developer, reviewer, technical-writer.` | Gõ sai tên vai trò | Dùng đúng một tên trong danh sách nó liệt kê |
+| `Unknown option for \`awb task create\`: --titl.` | Gõ sai tên tuỳ chọn | Xem `node bin/awb.js task --help` |
+| `... is already inside the workspace at ...` | Bạn lỡ tạo workspace lồng trong workspace | Dùng workspace đã có, đừng tạo cái mới |
+| `Task ... is not verified.` | Còn thiếu artifact hoặc điều kiện chất lượng | Chạy `task verify <id>` để xem thiếu gì |
+| `user/PROFILE.md has been edited.` | Bạn đã sửa tay hồ sơ, lệnh không dám ghi đè | Thêm `--replace` nếu thật sự muốn ghi đè |
+| `No roles/ entries exist yet.` | Workspace cũ, chưa có bộ khởi động | Chạy `node bin/awb.js migrate` |
 
-The binding appears as a compact reference in task context; no network call is
-made by `task context`. Recall is explicit and bounded:
+Không có trong bảng? Chạy `node bin/awb.js validate` — nó liệt kê mọi thứ đang
+sai trong workspace.
 
-```bash
-node bin/awb.js provider recall "advertising account validation" \
-  --project hvh-frontend-react \
-  --limit 8
-```
+## Code của tôi có bị đẩy lên Git không?
 
-Discover and call MemoryKnowledge's read-only tools directly when needed:
+**Không.** Workspace này commit hồ sơ, vai trò, kỹ năng, kiến thức, và bản ghi
+công việc của bạn. Mã nguồn dự án trong `src/` **bị loại trừ hoàn toàn**.
 
-```bash
-node bin/awb.js provider tools tencent-local \
-  --knowledge-id <tencent-knowledge-id>
+Hệ quả cần biết: thư mục dự án trong `src/` **không được version bởi repo nào
+cả**. Nếu công việc đó cần lịch sử, hãy để nó ở repo riêng và khai báo dạng
+external source, hoặc thêm vào dạng submodule. Chi tiết ở
+[docs/REFERENCE.md](docs/REFERENCE.md).
 
-node bin/awb.js provider call tencent-local read_page \
-  --knowledge-id <tencent-knowledge-id> \
-  --params '{"refs":["page-ref"]}'
-```
+## Nâng cấp workspace cũ
 
-When MemoryCore is configured, recall its bounded L1/L2/L3 context explicitly:
-
-```bash
-node bin/awb.js provider memory-recall tencent-local \
-  "What did we decide about account validation?" \
-  --session-key TASK-CS-GUIDE-001 \
-  --user-id <memory-user-id>
-```
-
-Workbench does not capture conversations into MemoryCore automatically in 0.3.
-This avoids silently exporting user or source content; capture can be added as
-an explicit reviewed workflow later.
-
-Provider output is not trusted durable knowledge. To retain a useful result,
-create a candidate with source provenance and use the existing approval flow:
-
-```bash
-node bin/awb.js provider propose tencent-local \
-  --scope project:hvh-frontend-react \
-  --title "Advertising account validation behavior" \
-  --source-ref <tencent-knowledge-id> \
-  --source-tool search \
-  --text "Reviewed observation to retain"
-
-node bin/awb.js memory approve <proposal-id> \
-  --knowledge-id hvh-frontend.account-validation
-```
-
-The provider integration follows the TencentDB Agent Memory v2
-MemoryKnowledge `/v3/tools/list` and `/v3/tools/call` contract. It is optional;
-all Workbench commands continue to work without TencentDB Agent Memory.
-
-## Upgrade from 0.2
-
-Run once from an existing Workbench 0.2 root:
+Nếu bạn đang giữ một bản Workbench từ trước 0.4:
 
 ```bash
 node bin/awb.js migrate
 node bin/awb.js validate
 ```
 
-The migration adds `knowledge/providers.json` and updates registry format
-markers without rewriting knowledge bodies, projects, tasks, or artifacts.
+Lệnh này cài bộ vai trò/kỹ năng khởi động và chuẩn hoá định danh. Nó **không bao
+giờ đè lên** thứ bạn tự viết, và chạy lại nhiều lần cũng không sao.
 
-## Git policy
+---
 
-Commit:
+## Đi sâu hơn
 
-- Core, schemas, and documentation;
-- profile, role, skill, workflow, and approved knowledge changes;
-- project and relationship registries;
-- managed sources;
-- `.gitmodules` and submodule commit pointers;
-- portable external-source descriptors;
-- task and artifact records when they are useful history.
+- [docs/REFERENCE.md](docs/REFERENCE.md) — tra cứu đầy đủ: chế độ nguồn,
+  submodule, external source, quan hệ giữa dự án, provider, chính sách Git,
+  danh sách lệnh
+- [docs/ONBOARDING.md](docs/ONBOARDING.md) — thiết kế của luồng phỏng vấn
+- [docs/CORE_SPEC.md](docs/CORE_SPEC.md) — đặc tả chuẩn của Core
+- [CHANGELOG.md](CHANGELOG.md) — thay đổi theo phiên bản
 
-Do not commit:
-
-- machine-local external paths;
-- sessions, temporary files, and logs;
-- passwords, tokens, cookies, or credentials;
-- generated profile HTML unless it is intentionally deployed.
-
-For large Word documents and screenshots, Git LFS can be enabled by the user;
-it is not required by Core.
-
-## Commands
-
-```text
-awb validate
-awb migrate
-awb project add|list|relations|resolve
-awb relation add|list
-awb task create|list|context|gate-pass|verify|close
-awb artifact add|list
-awb knowledge add|list|read|search
-awb memory propose|list|approve|reject
-awb provider add|list|bind|enable|disable|status|tools|call|search|recall|memory-recall|propose
-awb profile build
-```
-
-Every command supports `--json` for machine-readable output.
-
-## Development
+Trợ giúp ngay trong dòng lệnh:
 
 ```bash
-node --test
-npm run check
+node bin/awb.js help          # tổng quan
+node bin/awb.js task --help   # trợ giúp cho một nhóm lệnh
 ```
 
-See [docs/CORE_SPEC.md](docs/CORE_SPEC.md) for the normative Core contract and
-[docs/MIGRATION_0.3.md](docs/MIGRATION_0.3.md) for upgrade details. Provider
-behavior and token boundaries are described in
-[docs/KNOWLEDGE_PROVIDERS.md](docs/KNOWLEDGE_PROVIDERS.md).
+Mọi lệnh đều hỗ trợ `--json` để máy đọc được.
