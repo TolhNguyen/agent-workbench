@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.4.0 — 2026-08-27
+
+### Added
+
+- A starter capability catalog: three roles, three skills, and two workflows
+  are created by `awb init` and shipped with the repository, so a new
+  workspace has real capabilities to route to.
+- `awb role|skill|workflow list|show` for discovering the catalog.
+- `awb profile status` reports whether the workspace has been onboarded and
+  returns the interview questions and the catalog.
+- `awb profile complete` validates the answers, writes `user/PROFILE.md`, and
+  records completion in `.awb/workspace.json`.
+- `START_HERE.md` now opens with the interview step.
+
+### Changed
+
+- `awb task create` rejects a role, skill, or workflow that does not exist, and
+  names the ones that do.
+- `awb task create` is blocked until onboarding is complete. `--skip-onboarding`
+  is the escape hatch for automation.
+- `awb validate` reports dangling capability references as errors on active
+  tasks and as warnings on closed ones.
+- `awb init` refuses to create a workspace inside an existing one unless
+  `--allow-nested` is passed.
+- `profileStatus` now validates that every onboarding question's `catalog`
+  pointer names a real catalog (`roles`, `skills`, or `workflows`) and fails
+  with a message naming the offending question, the bad value, and the valid
+  keys. This matters to anyone editing `ONBOARDING_QUESTIONS` in
+  `core/templates.js`, which is expected — without it, a typo there surfaced
+  as a bare `TypeError` in front of a human user and only in text mode.
+- The `check` npm script now names `core/templates.js` individually; it had
+  been omitted even though it holds the largest template literals in the
+  codebase.
+
+`formatVersion` stays `0.3`; no migration is required.
+
 ## 0.3.1 — 2026-08-26
 
 ### Fixed

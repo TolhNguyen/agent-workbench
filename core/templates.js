@@ -5,22 +5,26 @@ related source projects under \`src/\`.
 
 ## Operating model
 
-1. Work from the workspace root, not from a single source repository.
-2. Identify the task, active role, and involved projects before loading context.
-3. Read only the role, workflow, project knowledge, and relationship information
+1. Run \`awb profile status\`. If it reports that onboarding is not complete,
+   interview the user with the questions it returns before starting any task,
+   then record the answers with \`awb profile complete\`. Do not guess who the
+   user is or which skills apply.
+2. Work from the workspace root, not from a single source repository.
+3. Identify the task, active role, and involved projects before loading context.
+4. Read only the role, workflow, project knowledge, and relationship information
    needed for the current task.
-4. Treat task read and write scopes as the work boundary. Relationships supply
+5. Treat task read and write scopes as the work boundary. Relationships supply
    context, but never silently grant access to another project.
-5. Use available \`awb\` commands when structured workspace information is
+6. Use available \`awb\` commands when structured workspace information is
    needed. Do not scan all knowledge speculatively.
-6. Read full knowledge content only after selecting a relevant knowledge ID.
-7. External knowledge providers are optional derived recall. Call them only
+7. Read full knowledge content only after selecting a relevant knowledge ID.
+8. External knowledge providers are optional derived recall. Call them only
    when a bound task needs them; never treat a provider response as canonical.
-8. Register deliverables as artifacts, complete the required quality gates, and
+9. Register deliverables as artifacts, complete the required quality gates, and
    verify the task before closing it.
-9. Record reusable observations as memory proposals. Do not promote them to
+10. Record reusable observations as memory proposals. Do not promote them to
    durable knowledge without user approval.
-10. A harness may create its own native instruction file if it needs one. Such a
+11. A harness may create its own native instruction file if it needs one. Such a
    file is only an entry point and must not duplicate the whole workspace.
 
 ## Standard directories

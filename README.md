@@ -27,6 +27,34 @@ node bin/awb.js validate
 node bin/awb.js profile build
 ```
 
+## First run
+
+A new workspace has no user profile. Before the first task, the agent runs:
+
+```bash
+node bin/awb.js profile status
+```
+
+If onboarding is incomplete, the command returns the interview questions and
+the catalog of available roles and skills. The agent asks the user those
+questions in the user's own language and records the answers:
+
+```bash
+node bin/awb.js profile complete \
+  --name "..." --role developer --language vi \
+  --responsibility "..." --system order-api --skill debugging
+```
+
+Until this is done, `awb task create` refuses to run. Automation that must
+bypass the interview can pass `--skip-onboarding`.
+
+Inspect the catalog at any time:
+
+```bash
+node bin/awb.js role list
+node bin/awb.js skill show debugging
+```
+
 To publish an extracted copy as a new repository:
 
 ```bash

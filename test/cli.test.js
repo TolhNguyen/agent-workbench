@@ -1077,6 +1077,20 @@ test("task create is blocked until the user has been interviewed", async () => {
   );
 });
 
+test("a fresh workspace tells the agent to run the interview first", async () => {
+  const root = await initializedWorkspace();
+  const startHere = await readFile(path.join(root, "START_HERE.md"), "utf8");
+  assert.match(startHere, /awb profile status/);
+  assert.match(startHere, /awb profile complete/);
+
+  const repoStartHere = await readFile(path.join(repositoryRoot, "START_HERE.md"), "utf8");
+  assert.match(repoStartHere, /awb profile status/);
+
+  const expected = JSON.parse(await readFile(path.join(repositoryRoot, "package.json"), "utf8")).version;
+  assert.equal(expected, "0.4.0");
+  assert.equal(awb(["version"]).stdout.trim(), "0.4.0");
+});
+
 function awb(args) {
   return spawnSync(process.execPath, [cli, ...args], {
     cwd: repositoryRoot,

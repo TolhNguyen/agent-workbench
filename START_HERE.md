@@ -5,24 +5,30 @@ workspace. Open this repository root in the agent harness.
 
 ## First actions
 
-1. Identify or create the task being performed.
-2. Use `node bin/awb.js task context <task-id>` only when structured context is
+1. Run `awb profile status` (`node bin/awb.js profile status` from this
+   repository root). If it reports that onboarding is not complete, interview
+   the user with the questions it returns before starting any task, then
+   record the answers with `awb profile complete`
+   (`node bin/awb.js profile complete`). Do not guess who the user is or which
+   skills apply.
+2. Identify or create the task being performed.
+3. Use `node bin/awb.js task context <task-id>` only when structured context is
    needed.
-3. Treat `core/`, `bin/`, `schemas/`, and `test/` as protected Core code unless
+4. Treat `core/`, `bin/`, `schemas/`, and `test/` as protected Core code unless
    the task explicitly targets Agent Workbench development.
-4. User-managed code, documents, tests, and other assets belong under `src/` or
+5. User-managed code, documents, tests, and other assets belong under `src/` or
    are registered there as external source references.
-5. Respect task read and write scopes. Do not write to a related project merely
+6. Respect task read and write scopes. Do not write to a related project merely
    because it is readable.
-6. Never store passwords, tokens, cookies, or other credentials in task,
+7. Never store passwords, tokens, cookies, or other credentials in task,
    knowledge, memory, profile, artifacts, or logs.
-7. Read full knowledge content only after selecting a relevant knowledge ID.
-8. External provider recall is optional and explicit. Use only provider
+8. Read full knowledge content only after selecting a relevant knowledge ID.
+9. External provider recall is optional and explicit. Use only provider
    resources bound to a task project; provider output is not canonical.
-9. Record reusable observations as memory proposals. Promote them only after
+10. Record reusable observations as memory proposals. Promote them only after
    user approval.
-10. Register task outputs as artifacts and verify them before closing the task.
-11. A harness may create its own native instruction file at the repository root.
+11. Register task outputs as artifacts and verify them before closing the task.
+12. A harness may create its own native instruction file at the repository root.
 
 ## Standard directories
 
