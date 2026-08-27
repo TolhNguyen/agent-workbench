@@ -1014,6 +1014,43 @@ export async function listDirectDirectories(root, relativeDirectory) {
   return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
 }
 
+const CAPABILITY_DIRECTORIES = { role: "roles", skill: "skills", workflow: "workflows" };
+
+export function capabilityDirectory(kind) {
+  const directory = CAPABILITY_DIRECTORIES[kind];
+  if (!directory) throw new Error(`Unknown capability kind: ${kind}`);
+  return directory;
+}
+
+export async function listCapabilities(root, kind) {
+  return listDirectDirectories(root, capabilityDirectory(kind));
+}
+
+export async function showCapability(root, kind, id) {
+  const safeId = await assertCapabilityExists(root, kind, normalizeId(id, `${kind} ID`));
+  const relativeDirectory = `${capabilityDirectory(kind)}/${safeId}`;
+  return {
+    kind,
+    id: safeId,
+    path: relativeDirectory,
+    files: await listFilesRecursively(root, relativeDirectory, 50)
+  };
+}
+
+// Names what does exist instead of guessing at a correction: an agent reading
+// the error can pick a real ID from it without another round trip.
+export async function assertCapabilityExists(root, kind, id) {
+  const directory = capabilityDirectory(kind);
+  if (await exists(path.join(root, directory, id))) return id;
+  const available = await listCapabilities(root, kind);
+  if (!available.length) {
+    throw new Error(`Unknown ${kind}: ${id}. No ${directory}/ entries exist yet.`);
+  }
+  const shown = available.slice(0, 10).join(", ");
+  const more = available.length > 10 ? `, and ${available.length - 10} more` : "";
+  throw new Error(`Unknown ${kind}: ${id}. Available: ${shown}${more}.`);
+}
+
 export async function validateWorkspace(root) {
   const errors = [];
   const warnings = [];

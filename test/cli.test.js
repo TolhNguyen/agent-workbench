@@ -819,6 +819,31 @@ test("init refuses to nest a workspace inside an existing one", async () => {
   assert.equal(await fileExists(path.join(nested, ".awb", "workspace.json")), true);
 });
 
+test("capability catalogs are discoverable for every kind", async () => {
+  const root = await initializedWorkspace();
+
+  assert.deepEqual(
+    JSON.parse(awb(["--root", root, "--json", "skill", "list"]).stdout),
+    ["code-review", "debugging", "writing-user-guide"]
+  );
+  assert.deepEqual(
+    JSON.parse(awb(["--root", root, "--json", "workflow", "list"]).stdout),
+    ["document-delivery", "feature-delivery"]
+  );
+
+  const shown = JSON.parse(awb(["--root", root, "--json", "role", "show", "developer"]).stdout);
+  assert.equal(shown.id, "developer");
+  assert.equal(shown.path, "roles/developer");
+  assert.deepEqual(shown.files.sort(), [
+    "roles/developer/DEFINITION_OF_DONE.md",
+    "roles/developer/ROLE.md"
+  ]);
+
+  const missing = awb(["--root", root, "role", "show", "nope"]);
+  assert.equal(missing.status, 1);
+  assert.match(missing.stderr, /Unknown role: nope\. Available: developer, reviewer, technical-writer\./);
+});
+
 function awb(args) {
   return spawnSync(process.execPath, [cli, ...args], {
     cwd: repositoryRoot,

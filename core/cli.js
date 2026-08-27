@@ -8,6 +8,7 @@ import {
   addProject,
   addRelationship,
   approveMemory,
+  assertCapabilityExists,
   bindKnowledgeProvider,
   closeTask,
   createTask,
@@ -18,6 +19,7 @@ import {
   getRelationships,
   initWorkspace,
   listArtifacts,
+  listCapabilities,
   listKnowledge,
   listProposals,
   listTasks,
@@ -30,6 +32,7 @@ import {
   resolveProject,
   searchKnowledge,
   setKnowledgeProviderEnabled,
+  showCapability,
   taskContext,
   validateWorkspace,
   verifyTask
@@ -59,6 +62,12 @@ const COMMAND_OPTIONS = {
   "project resolve": [],
   "relation add": ["id", "description", "contract", "tag", "last-verified"],
   "relation list": [],
+  "role list": [],
+  "role show": [],
+  "skill list": [],
+  "skill show": [],
+  "workflow list": [],
+  "workflow show": [],
   "task create": [
     "id", "title", "objective", "audience", "role", "supporting-role", "primary", "project",
     "skill", "workflow", "browser", "read", "write", "deliverable", "quality-gate", "constraint", "done"
@@ -161,6 +170,11 @@ async function dispatch({ io, parsed, group, action, positionals, wantsJson }) {
       break;
     case "relation":
       command = await relationCommand(root, action, positionals, parsed);
+      break;
+    case "role":
+    case "skill":
+    case "workflow":
+      command = await capabilityCommand(root, group, action, positionals);
       break;
     case "task":
       command = await taskCommand(root, action, positionals, parsed);
@@ -304,6 +318,27 @@ async function relationCommand(root, action, positionals, parsed) {
     };
   }
   throw new Error("Usage: awb relation add|list");
+}
+
+async function capabilityCommand(root, kind, action, positionals) {
+  if (action === "list") {
+    const items = await listCapabilities(root, kind);
+    return {
+      data: items,
+      text: () => (items.length ? items.map((item) => `- ${item}`).join("\n") : `No ${kind}s found.`)
+    };
+  }
+  if (action === "show") {
+    const id = positionals[0];
+    if (!id) throw new Error(`Usage: awb ${kind} show <${kind}-id>`);
+    const capability = await showCapability(root, kind, id);
+    return {
+      data: capability,
+      text: () =>
+        [`${kind}: ${capability.id}`, `Path: ${capability.path}`, "Files:", ...capability.files.map((file) => `- ${file}`)].join("\n")
+    };
+  }
+  throw new Error(`Usage: awb ${kind} list|show`);
 }
 
 async function taskCommand(root, action, positionals, parsed) {
@@ -876,6 +911,8 @@ Commands:
   project add|list|relations|resolve
                                Manage managed, submodule, and external sources
   relation add|list            Manage typed project relationships
+  role|skill|workflow list|show
+                               Inspect the capability catalog
   task create|list|context|gate-pass|verify|close
                                Manage multi-project task contracts
   artifact add|list            Register and verify task outputs
