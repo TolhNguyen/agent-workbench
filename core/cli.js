@@ -8,7 +8,6 @@ import {
   addProject,
   addRelationship,
   approveMemory,
-  assertCapabilityExists,
   bindKnowledgeProvider,
   closeTask,
   createTask,
@@ -26,6 +25,7 @@ import {
   migrateWorkspace,
   normalizeId,
   passQualityGate,
+  profileStatus,
   proposeMemory,
   readKnowledge,
   rejectMemory,
@@ -108,7 +108,8 @@ const COMMAND_OPTIONS = {
     "id", "kind", "title", "scope", "text", "file", "stdin", "task", "tag",
     "knowledge-id", "source-ref", "source-tool"
   ],
-  "profile build": []
+  "profile build": [],
+  "profile status": []
 };
 
 export async function run(argv, io = defaultIo()) {
@@ -192,7 +193,12 @@ async function dispatch({ io, parsed, group, action, positionals, wantsJson }) {
       command = await providerCommand(root, action, positionals, parsed, io);
       break;
     case "profile": {
-      if (action !== "build") throw new Error("Usage: awb profile build");
+      if (action === "status") {
+        const status = await profileStatus(root);
+        command = { data: status, text: () => formatProfileStatus(status) };
+        break;
+      }
+      if (action !== "build") throw new Error("Usage: awb profile build|status");
       const profile = await buildProfile(root);
       command = {
         data: profile,
@@ -826,6 +832,26 @@ function formatValidation(result) {
   return lines.join("\n");
 }
 
+function formatProfileStatus(status) {
+  if (status.complete) {
+    return [
+      "Onboarding is complete.",
+      `Profile: ${status.profilePath}`,
+      `Completed: ${status.completedAt ?? "unknown"}`
+    ].join("\n");
+  }
+  return [
+    "Onboarding is not complete. Interview the user with these questions, then",
+    "record the answers with `awb profile complete`.",
+    "",
+    ...status.questions.map(
+      (question) =>
+        `- ${question.id}${question.required ? " (required)" : ""}: ${question.prompt}` +
+        (question.catalog ? `\n  Choose from ${question.catalog}: ${status.catalog[question.catalog].join(", ")}` : "")
+    )
+  ].join("\n");
+}
+
 function formatTaskContext(context) {
   const { task } = context;
   const lines = [
@@ -922,7 +948,7 @@ Commands:
                                Manage the learning approval lifecycle
   provider add|list|bind|enable|disable|status|tools|call|search|recall|memory-recall|propose
                                Use optional external knowledge providers
-  profile build                Generate profile/index.html
+  profile build|status         Generate profile/index.html; report onboarding
   version                      Print the CLI version
 
 Global options:

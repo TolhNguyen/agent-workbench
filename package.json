@@ -8,7 +8,7 @@
   },
   "scripts": {
     "test": "node --test",
-    "check": "node --check bin/awb.js && node --check core/cli.js && node --check core/core.js && node --check core/profile.js && node --check core/providers.js && node --check core/schema.js && node --check core/profile-styles.js"
+    "check": "node --check bin/awb.js && node --check core/cli.js && node --check core/core.js && node --check core/profile.js && node --check core/providers.js && node --check core/schema.js && node --check core/profile-styles.js && node --check core/templates.js"
   },
   "engines": {
     "node": ">=20"

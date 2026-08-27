@@ -23,6 +23,15 @@
     "updatedAt": {
       "type": "string",
       "format": "date-time"
+    },
+    "onboarding": {
+      "type": "object",
+      "required": ["complete"],
+      "properties": {
+        "complete": { "type": "boolean" },
+        "completedAt": { "type": ["string", "null"], "format": "date-time" }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": true

@@ -906,6 +906,35 @@ test("validate errors on a dangling reference from an active task and warns for 
   );
 });
 
+test("profile status reports the gate, the questions, and the catalog", async () => {
+  const root = await initializedWorkspace();
+
+  const status = JSON.parse(awb(["--root", root, "--json", "profile", "status"]).stdout);
+  assert.equal(status.complete, false);
+  assert.equal(status.completedAt, null);
+  assert.equal(status.profilePath, "user/PROFILE.md");
+  assert.deepEqual(status.catalog.roles, ["developer", "reviewer", "technical-writer"]);
+
+  const ids = status.questions.map((question) => question.id);
+  assert.deepEqual(ids, [
+    "name", "role", "language", "responsibilities",
+    "systems", "skills", "principles", "constraints"
+  ]);
+  for (const question of status.questions) {
+    assert.equal(typeof question.prompt, "string");
+    assert.ok(question.prompt.length > 0, `${question.id} needs a prompt`);
+    assert.ok(["text", "list", "choice"].includes(question.kind), `${question.id} kind`);
+  }
+  assert.equal(status.questions.find((q) => q.id === "role").catalog, "roles");
+  assert.equal(status.questions.find((q) => q.id === "skills").catalog, "skills");
+
+  // Missing PROFILE.md must not break the command that diagnoses the workspace.
+  await rm(path.join(root, "user", "PROFILE.md"), { force: true });
+  const withoutProfile = awb(["--root", root, "--json", "profile", "status"]);
+  assertSuccess(withoutProfile);
+  assert.equal(JSON.parse(withoutProfile.stdout).complete, false);
+});
+
 function awb(args) {
   return spawnSync(process.execPath, [cli, ...args], {
     cwd: repositoryRoot,

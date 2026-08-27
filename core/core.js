@@ -10,12 +10,20 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
-import { CAPABILITY_CATALOG, DIRECTORY_READMES, START_HERE, USER_PROFILE } from "./templates.js";
+import {
+  CAPABILITY_CATALOG,
+  DIRECTORY_READMES,
+  ONBOARDING_QUESTIONS,
+  START_HERE,
+  USER_PROFILE
+} from "./templates.js";
 import { normalizeProviderConfig } from "./providers.js";
 import { loadSchemas, validateAgainstSchema } from "./schema.js";
 
 export const FORMAT_VERSION = "0.3";
 export const PACKAGE_VERSION = "0.3.1";
+
+export const USER_PROFILE_PATH = "user/PROFILE.md";
 
 const PROJECTS_FILE = "projects/index.json";
 const RELATIONSHIPS_FILE = "relationships/index.json";
@@ -215,6 +223,30 @@ export async function touchWorkspace(root) {
   const workspace = await getWorkspace(root);
   workspace.updatedAt = nowIso();
   await writeJson(root, ".awb/workspace.json", workspace);
+}
+
+export async function getOnboarding(root) {
+  const workspace = await getWorkspace(root);
+  const onboarding = workspace.onboarding ?? {};
+  // A workspace with no key at all predates onboarding, which is exactly the
+  // state the interview exists to fix.
+  return { complete: onboarding.complete === true, completedAt: onboarding.completedAt ?? null };
+}
+
+export async function profileStatus(root) {
+  const { complete, completedAt } = await getOnboarding(root);
+  const [roles, skills, workflows] = await Promise.all([
+    listCapabilities(root, "role"),
+    listCapabilities(root, "skill"),
+    listCapabilities(root, "workflow")
+  ]);
+  return {
+    complete,
+    completedAt,
+    profilePath: USER_PROFILE_PATH,
+    questions: structuredClone(ONBOARDING_QUESTIONS),
+    catalog: { roles, skills, workflows }
+  };
 }
 
 export async function migrateWorkspace(root) {

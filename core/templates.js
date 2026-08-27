@@ -245,3 +245,53 @@ A document whose steps a reader can follow start to finish without help.
 7. \`awb task verify\`, then \`awb task close\`.
 `
 };
+
+// Asked in English and stored in English; the agent conducts the interview in
+// whatever language the user speaks and records the answers here.
+export const ONBOARDING_QUESTIONS = [
+  { id: "name", kind: "text", required: true, prompt: "What should I call you?" },
+  {
+    id: "role",
+    kind: "choice",
+    required: true,
+    catalog: "roles",
+    prompt: "Which role best describes your main work here?"
+  },
+  {
+    id: "language",
+    kind: "text",
+    required: true,
+    prompt: "Which language should I write and talk to you in?"
+  },
+  {
+    id: "responsibilities",
+    kind: "list",
+    required: true,
+    prompt: "What are you responsible for day to day?"
+  },
+  {
+    id: "systems",
+    kind: "list",
+    required: false,
+    prompt: "Which systems, products, or codebases do you own or touch most?"
+  },
+  {
+    id: "skills",
+    kind: "list",
+    required: false,
+    catalog: "skills",
+    prompt: "Which of these skills do you expect to need regularly?"
+  },
+  {
+    id: "principles",
+    kind: "list",
+    required: false,
+    prompt: "How do you prefer work to be done? Anything I should always do?"
+  },
+  {
+    id: "constraints",
+    kind: "list",
+    required: false,
+    prompt: "Anything I must never do, or must ask you before doing?"
+  }
+];
