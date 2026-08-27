@@ -249,6 +249,86 @@ export async function profileStatus(root) {
   };
 }
 
+export async function completeProfile(root, input = {}) {
+  const { complete } = await getOnboarding(root);
+  const target = path.join(root, USER_PROFILE_PATH);
+  const current = (await exists(target)) ? await readFile(target, "utf8") : null;
+  const untouched = current === null || current.trim() === USER_PROFILE.trim();
+
+  // The rule is "do not overwrite content Core did not write", which covers a
+  // re-run and a profile the user filled in by hand before the interview.
+  if (!input.replace) {
+    if (complete) {
+      throw new Error("Onboarding is already complete. Pass --replace to record new answers.");
+    }
+    if (!untouched) {
+      throw new Error(
+        `${USER_PROFILE_PATH} has been edited. Pass --replace to overwrite it with the interview answers.`
+      );
+    }
+  }
+
+  const name = requiredAnswer(input.name, "Name");
+  const language = requiredAnswer(input.language, "Preferred language");
+  const role = await assertCapabilityExists(root, "role", normalizeId(input.role, "Role ID"));
+  const skills = [];
+  for (const skill of unique(input.skills ?? [])) {
+    skills.push(await assertCapabilityExists(root, "skill", normalizeId(skill, "Skill ID")));
+  }
+  const responsibilities = unique(input.responsibilities ?? []);
+  if (responsibilities.length === 0) throw new Error("At least one responsibility is required.");
+  const systems = unique(input.systems ?? []);
+  const principles = unique(input.principles ?? []);
+  const constraints = unique(input.constraints ?? []);
+
+  await writeText(
+    root,
+    USER_PROFILE_PATH,
+    renderUserProfile({ name, role, language, responsibilities, systems, skills, principles, constraints })
+  );
+
+  const completedAt = nowIso();
+  const workspace = await getWorkspace(root);
+  workspace.onboarding = { complete: true, completedAt };
+  workspace.updatedAt = completedAt;
+  await writeJson(root, ".awb/workspace.json", workspace);
+
+  return { profilePath: USER_PROFILE_PATH, name, role, language, skills, completedAt };
+}
+
+function requiredAnswer(value, label) {
+  const text = String(value ?? "").trim();
+  if (!text) throw new Error(`${label} is required.`);
+  return text;
+}
+
+function renderUserProfile(answers) {
+  const section = (title, items, empty) => [
+    `## ${title}`,
+    "",
+    ...(items.length ? items.map((item) => `- ${item}`) : [`- ${empty}`]),
+    ""
+  ];
+  return [
+    "# User Profile",
+    "",
+    "Recorded by `awb profile complete`. Edit freely; re-running the interview",
+    "requires `--replace`.",
+    "",
+    "## About",
+    "",
+    `- Name: ${answers.name}`,
+    `- Primary role: ${answers.role}`,
+    `- Preferred language: ${answers.language}`,
+    "",
+    ...section("Primary responsibilities", answers.responsibilities, "Not recorded."),
+    ...section("Systems and codebases", answers.systems, "Not recorded."),
+    ...section("Frequently needed skills", answers.skills, "Not recorded."),
+    ...section("Working principles", answers.principles, "Not recorded."),
+    ...section("Constraints", answers.constraints, "None recorded.")
+  ].join("\n");
+}
+
 export async function migrateWorkspace(root) {
   const workspace = await getWorkspace(root);
   if (workspace.formatVersion !== "0.2" && workspace.formatVersion !== FORMAT_VERSION) {

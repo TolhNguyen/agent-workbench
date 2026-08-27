@@ -10,6 +10,7 @@ import {
   approveMemory,
   bindKnowledgeProvider,
   closeTask,
+  completeProfile,
   createTask,
   findWorkspaceRoot,
   getKnowledgeProvider,
@@ -109,7 +110,11 @@ const COMMAND_OPTIONS = {
     "knowledge-id", "source-ref", "source-tool"
   ],
   "profile build": [],
-  "profile status": []
+  "profile status": [],
+  "profile complete": [
+    "name", "role", "language", "responsibility", "system", "skill",
+    "principle", "constraint", "replace"
+  ]
 };
 
 export async function run(argv, io = defaultIo()) {
@@ -198,7 +203,26 @@ async function dispatch({ io, parsed, group, action, positionals, wantsJson }) {
         command = { data: status, text: () => formatProfileStatus(status) };
         break;
       }
-      if (action !== "build") throw new Error("Usage: awb profile build|status");
+      if (action === "complete") {
+        const recorded = await completeProfile(root, {
+          name: value(parsed, "name"),
+          role: value(parsed, "role"),
+          language: value(parsed, "language"),
+          responsibilities: values(parsed, "responsibility"),
+          systems: values(parsed, "system"),
+          skills: values(parsed, "skill"),
+          principles: values(parsed, "principle"),
+          constraints: values(parsed, "constraint"),
+          replace: has(parsed, "replace")
+        });
+        command = {
+          data: recorded,
+          text: () =>
+            `Profile recorded: ${recorded.profilePath}\nName: ${recorded.name}\nRole: ${recorded.role}\nLanguage: ${recorded.language}`
+        };
+        break;
+      }
+      if (action !== "build") throw new Error("Usage: awb profile build|status|complete");
       const profile = await buildProfile(root);
       command = {
         data: profile,
@@ -948,7 +972,8 @@ Commands:
                                Manage the learning approval lifecycle
   provider add|list|bind|enable|disable|status|tools|call|search|recall|memory-recall|propose
                                Use optional external knowledge providers
-  profile build|status         Generate profile/index.html; report onboarding
+  profile build|status|complete
+                               Generate the HTML view; run onboarding
   version                      Print the CLI version
 
 Global options:
@@ -1013,7 +1038,14 @@ Exit codes:
   awb provider recall <query> --project <project-id> [--provider <id>] [--limit 10]
   awb provider memory-recall <id> <query> --session-key <key> [--user-id <id>]
   awb provider propose <id> --scope <scope> --title <text> --text <content>
-                       [--source-ref <resource-ref>] [--source-tool <tool>]`
+                       [--source-ref <resource-ref>] [--source-tool <tool>]`,
+    profile: `Profile commands:
+  awb profile status
+  awb profile complete --name <text> --role <role-id> --language <text>
+                       --responsibility <text> [--responsibility <text>]
+                       [--system <text>] [--skill <skill-id>]
+                       [--principle <text>] [--constraint <text>] [--replace]
+  awb profile build`
   };
   return group && details[group] ? `${common}\n${details[group]}\n` : common;
 }

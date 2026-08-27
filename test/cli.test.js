@@ -935,6 +935,91 @@ test("profile status reports the gate, the questions, and the catalog", async ()
   assert.equal(JSON.parse(withoutProfile.stdout).complete, false);
 });
 
+test("profile complete validates answers, writes the profile, and guards overwrites", async () => {
+  const root = await initializedWorkspace();
+
+  const statusBefore = awb(["--root", root, "profile", "status"]);
+  assertSuccess(statusBefore);
+  assert.match(statusBefore.stdout, /Which role best describes your main work here\?/);
+  assert.match(statusBefore.stdout, /developer/);
+
+  const badRole = awb([
+    "--root", root, "profile", "complete",
+    "--name", "Tin", "--role", "khong-co-that", "--language", "vi",
+    "--responsibility", "Ship the POS integrations"
+  ]);
+  assert.equal(badRole.status, 1);
+  assert.match(badRole.stderr, /Unknown role: khong-co-that\. Available: developer/);
+
+  const noResponsibility = awb([
+    "--root", root, "profile", "complete",
+    "--name", "Tin", "--role", "developer", "--language", "vi"
+  ]);
+  assert.equal(noResponsibility.status, 1);
+  assert.match(noResponsibility.stderr, /At least one responsibility is required/);
+
+  const completed = awb([
+    "--root", root, "--json", "profile", "complete",
+    "--name", "Tin", "--role", "developer", "--language", "vi",
+    "--responsibility", "Ship the POS integrations",
+    "--system", "order-api",
+    "--skill", "debugging",
+    "--principle", "Verify before claiming done",
+    "--constraint", "Never touch production data"
+  ]);
+  assertSuccess(completed);
+  assert.equal(JSON.parse(completed.stdout).role, "developer");
+
+  const profile = await readFile(path.join(root, "user", "PROFILE.md"), "utf8");
+  assert.match(profile, /Tin/);
+  assert.match(profile, /developer/);
+  assert.match(profile, /Ship the POS integrations/);
+  assert.match(profile, /Never touch production data/);
+
+  const workspace = JSON.parse(await readFile(path.join(root, ".awb", "workspace.json"), "utf8"));
+  assert.equal(workspace.onboarding.complete, true);
+  assert.ok(workspace.onboarding.completedAt);
+
+  const status = JSON.parse(awb(["--root", root, "--json", "profile", "status"]).stdout);
+  assert.equal(status.complete, true);
+
+  const statusAfter = awb(["--root", root, "profile", "status"]);
+  assertSuccess(statusAfter);
+  assert.match(statusAfter.stdout, /Onboarding is complete/);
+
+  const again = awb([
+    "--root", root, "profile", "complete",
+    "--name", "Tin", "--role", "reviewer", "--language", "vi",
+    "--responsibility", "Review"
+  ]);
+  assert.equal(again.status, 1);
+  assert.match(again.stderr, /already complete/);
+
+  const replaced = awb([
+    "--root", root, "profile", "complete", "--replace",
+    "--name", "Tin", "--role", "reviewer", "--language", "vi",
+    "--responsibility", "Review"
+  ]);
+  assertSuccess(replaced);
+  assert.match(await readFile(path.join(root, "user", "PROFILE.md"), "utf8"), /reviewer/);
+
+  assertSuccess(awb(["--root", root, "validate"]));
+});
+
+test("profile complete refuses to overwrite a hand-edited profile", async () => {
+  const root = await initializedWorkspace();
+  await writeFile(path.join(root, "user", "PROFILE.md"), "# My own notes\n\nHand written.\n", "utf8");
+
+  const refused = awb([
+    "--root", root, "profile", "complete",
+    "--name", "Tin", "--role", "developer", "--language", "vi",
+    "--responsibility", "Ship things"
+  ]);
+  assert.equal(refused.status, 1);
+  assert.match(refused.stderr, /has been edited/);
+  assert.match(await readFile(path.join(root, "user", "PROFILE.md"), "utf8"), /Hand written/);
+});
+
 function awb(args) {
   return spawnSync(process.execPath, [cli, ...args], {
     cwd: repositoryRoot,
