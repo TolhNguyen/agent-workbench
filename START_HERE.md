@@ -5,12 +5,11 @@ workspace. Open this repository root in the agent harness.
 
 ## First actions
 
-1. Run `awb profile status` (`node bin/awb.js profile status` from this
-   repository root). If it reports that onboarding is not complete, interview
-   the user with the questions it returns before starting any task, then
-   record the answers with `awb profile complete`
-   (`node bin/awb.js profile complete`). Do not guess who the user is or which
-   skills apply.
+1. Run the installed `awb profile status` command, or `node bin/awb.js profile
+   status` from this repository root. If it reports that onboarding is not
+   complete, interview the user with the questions it returns before starting
+   any task, then record the answers with `node bin/awb.js profile complete`.
+   Do not guess who the user is or which skills apply.
 2. Identify or create the task being performed.
 3. Use `node bin/awb.js task context <task-id>` only when structured context is
    needed.
