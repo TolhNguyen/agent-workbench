@@ -49,6 +49,14 @@ test("the committed user/PROFILE.md is byte-identical to the USER_PROFILE templa
 // the START_HERE template intentionally diverge in wording and list length
 // -- that is an accepted decision, not drift. Do not "fix" it by adding a
 // pin for it.
+//
+// The six DIRECTORY_READMES are deliberately NOT pinned either, for the same
+// reason. The templates address a bare workspace created by `awb init`; the
+// committed copies address THIS repository, which also carries `core/`,
+// `bin/`, and `test/` that a bare workspace never has. Forcing them to match
+// would make one of the two wrong wherever it is read. Their content is
+// documentation only -- unlike `user/PROFILE.md`, nothing compares them at
+// runtime, so drift here cannot break a command.
 test("every committed capability catalog file matches the CAPABILITY_CATALOG template", async () => {
   for (const [relativePath, content] of Object.entries(CAPABILITY_CATALOG)) {
     const committed = await readFile(path.join(repositoryRoot, relativePath), "utf8");
