@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-workbench.local/schemas/workspace.schema.json",
+  "title": "Agent Workbench Workspace",
+  "type": "object",
+  "required": ["formatVersion", "name", "createdAt"],
+  "properties": {
+    "formatVersion": {
+      "type": "string",
+      "const": "0.3"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": true
+}

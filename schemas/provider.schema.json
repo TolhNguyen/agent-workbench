@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-workbench.local/schemas/provider.schema.json",
+  "title": "Agent Workbench Knowledge Provider",
+  "type": "object",
+  "required": ["id", "name", "type", "enabled", "endpoints", "serviceId", "timeoutMs", "bindings"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "type": {
+      "const": "tencentdb-agent-memory"
+    },
+    "enabled": {
+      "type": "boolean"
+    },
+    "endpoints": {
+      "type": "object",
+      "required": ["knowledge"],
+      "properties": {
+        "knowledge": { "type": "string", "format": "uri", "pattern": "^https?://" },
+        "core": { "type": ["string", "null"], "format": "uri" }
+      },
+      "additionalProperties": false
+    },
+    "serviceId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    },
+    "auth": {
+      "type": ["object", "null"],
+      "properties": {
+        "knowledgeEnv": { "type": ["string", "null"], "pattern": "^[A-Z_][A-Z0-9_]*$" },
+        "coreEnv": { "type": ["string", "null"], "pattern": "^[A-Z_][A-Z0-9_]*$" }
+      },
+      "required": ["knowledgeEnv", "coreEnv"],
+      "additionalProperties": false
+    },
+    "timeoutMs": {
+      "type": "integer",
+      "minimum": 250,
+      "maximum": 60000
+    },
+    "bindings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["projectId", "knowledgeId"],
+        "properties": {
+          "projectId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+          "knowledgeId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$" },
+          "description": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

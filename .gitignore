@@ -1,0 +1,36 @@
+node_modules/
+coverage/
+*.log
+.DS_Store
+
+# ---------------------------------------------------------------------------
+# Project sources are never committed to the Workbench repository.
+#
+# Only the portable descriptors survive: src/<id>.source.json names a project
+# without naming where it lives on any one machine. Real code lives outside
+# this repository, or is registered as a submodule with its own history.
+#
+# Already-committed sources keep being tracked until you run:
+#   git rm -r --cached src/<name>
+# ---------------------------------------------------------------------------
+/src/*
+!/src/README.md
+!/src/*.source.json
+
+# Machine-specific external source locations. Covered by the rule above, kept
+# explicit so the intent survives if src/ is ever partially re-included.
+src/.external/*.local.json
+
+# Runtime-only state
+work/tmp/
+work/sessions/
+work/logs/
+
+# Generated view (remove this line if you deploy the profile)
+profile/index.html
+
+# Secrets must never enter workspace history
+.env
+.env.*
+**/credentials.*
+**/secrets.*

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-workbench.local/schemas/artifact.schema.json",
+  "title": "Agent Workbench Artifact",
+  "type": "object",
+  "required": ["id", "taskId", "projectId", "path", "kind", "verified"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+    "taskId": { "type": "string", "pattern": "^[A-Z0-9][A-Z0-9._-]*$" },
+    "projectId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+    "path": { "type": "string", "not": { "pattern": "^(/|\\\\|\\.\\./)" } },
+    "kind": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+    "title": { "type": "string" },
+    "verified": { "type": "boolean" },
+    "verificationNote": { "type": ["string", "null"] },
+    "sizeBytes": { "type": "integer", "minimum": 0 }
+  },
+  "additionalProperties": true
+}

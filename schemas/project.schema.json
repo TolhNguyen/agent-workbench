@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-workbench.local/schemas/project.schema.json",
+  "title": "Agent Workbench Project",
+  "type": "object",
+  "required": ["id", "name", "path", "sourceMode"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+    "name": { "type": "string", "minLength": 1 },
+    "path": { "type": "string", "pattern": "^src/" },
+    "sourceMode": { "enum": ["managed", "submodule", "external"] },
+    "repositoryUrl": { "type": ["string", "null"] },
+    "localReference": { "type": ["string", "null"] },
+    "description": { "type": "string" },
+    "tags": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-workbench.local/schemas/relationship.schema.json",
+  "title": "Agent Workbench Project Relationship",
+  "type": "object",
+  "required": ["id", "from", "to", "type"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+    "from": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+    "to": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+    "type": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+    "description": { "type": "string" },
+    "contract": { "type": "string" },
+    "lastVerified": { "type": ["string", "null"] }
+  },
+  "additionalProperties": true
+}
