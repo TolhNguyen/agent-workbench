@@ -20,6 +20,18 @@
     "objective": { "type": "string" },
     "audience": { "type": "string" },
     "primaryRole": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+    "supportingRoles": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" }
+    },
+    "skills": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" }
+    },
+    "workflows": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" }
+    },
     "primaryProject": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
     "projects": {
       "type": "array",

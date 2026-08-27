@@ -1,5 +1,7 @@
 # User Profile
 
+Describe the user whose working point of view this workspace represents.
+
 ## About
 
 - Name:
@@ -8,7 +10,7 @@
 
 ## Working principles
 
-- Add durable working principles here.
+- Add durable principles here.
 
 ## Communication preferences
 

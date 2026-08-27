@@ -33,8 +33,15 @@
 - The `check` npm script now names `core/templates.js` individually; it had
   been omitted even though it holds the largest template literals in the
   codebase.
+- `awb migrate` installs the starter capability catalog (`overwrite: false`)
+  into any workspace created before 0.4.0, so an existing workspace does not
+  upgrade with empty `roles/`, `skills/`, and `workflows/` directories and no
+  path forward. The number of catalog files installed is reported alongside
+  `tasksUpdated` and `proposalsUpdated`.
 
-`formatVersion` stays `0.3`; no migration is required.
+`formatVersion` stays `0.3`. Migration is not required to keep using an
+existing workspace, but anyone holding a workspace created before 0.4.0
+should run `awb migrate` at least once to receive the starter catalog.
 
 ## 0.3.1 — 2026-08-26
 

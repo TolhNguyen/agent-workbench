@@ -202,7 +202,7 @@ export async function initWorkspace(
   await writeJson(target, PROVIDERS_FILE, { formatVersion: FORMAT_VERSION, providers: [] });
   await writeJson(target, ARTIFACTS_FILE, { formatVersion: FORMAT_VERSION, artifacts: [] });
   await writeText(target, "START_HERE.md", START_HERE, { overwrite: false });
-  await writeText(target, "user/PROFILE.md", USER_PROFILE, { overwrite: false });
+  await writeText(target, USER_PROFILE_PATH, USER_PROFILE, { overwrite: false });
   await writeText(target, "roles/README.md", DIRECTORY_READMES.roles, { overwrite: false });
   await writeText(target, "skills/README.md", DIRECTORY_READMES.skills, { overwrite: false });
   await writeText(target, "workflows/README.md", DIRECTORY_READMES.workflows, { overwrite: false });
@@ -390,6 +390,18 @@ export async function migrateWorkspace(root) {
   }
   const providers = await readJson(root, PROVIDERS_FILE, { formatVersion: FORMAT_VERSION, providers: [] });
   await writeJson(root, PROVIDERS_FILE, { ...providers, formatVersion: FORMAT_VERSION });
+
+  // A workspace created before the capability catalog existed upgrades with
+  // empty roles/, skills/, and workflows/ directories, which closes off every
+  // path forward: the default role cannot be found, onboarding cannot be
+  // answered, and task create fails no matter what. `overwrite: false` means a
+  // user's own catalog entries (or a catalog installed by an earlier migrate)
+  // are never clobbered.
+  let catalogFilesWritten = 0;
+  for (const [relativePath, content] of Object.entries(CAPABILITY_CATALOG)) {
+    if (await writeText(root, relativePath, content, { overwrite: false })) catalogFilesWritten += 1;
+  }
+
   workspace.formatVersion = FORMAT_VERSION;
   workspace.updatedAt = nowIso();
   await writeJson(root, ".awb/workspace.json", workspace);
@@ -397,9 +409,10 @@ export async function migrateWorkspace(root) {
     root: path.resolve(root),
     from,
     to: FORMAT_VERSION,
-    changed: from !== FORMAT_VERSION || tasks.changed > 0 || proposals.changed > 0,
+    changed: from !== FORMAT_VERSION || tasks.changed > 0 || proposals.changed > 0 || catalogFilesWritten > 0,
     tasksUpdated: tasks.changed,
     proposalsUpdated: proposals.changed,
+    catalogFilesWritten,
     renamedTasks: Object.fromEntries(tasks.renames),
     renamedProposals: Object.fromEntries(proposals.renames)
   };
@@ -828,7 +841,7 @@ export async function taskContext(root, taskId) {
   );
   return {
     task,
-    userProfile: "user/PROFILE.md",
+    userProfile: USER_PROFILE_PATH,
     projects,
     relationships,
     relatedProjects,
@@ -1184,7 +1197,8 @@ export async function listCapabilities(root, kind) {
 }
 
 export async function showCapability(root, kind, id) {
-  const safeId = await assertCapabilityExists(root, kind, normalizeId(id, `${kind} ID`));
+  const label = `${kind.charAt(0).toUpperCase()}${kind.slice(1)} ID`;
+  const safeId = await assertCapabilityExists(root, kind, normalizeId(id, label));
   const relativeDirectory = `${capabilityDirectory(kind)}/${safeId}`;
   return {
     kind,
@@ -1201,7 +1215,10 @@ export async function assertCapabilityExists(root, kind, id) {
   if (await exists(path.join(root, directory, id))) return id;
   const available = await listCapabilities(root, kind);
   if (!available.length) {
-    throw new Error(`Unknown ${kind}: ${id}. No ${directory}/ entries exist yet.`);
+    throw new Error(
+      `Unknown ${kind}: ${id}. No ${directory}/ entries exist yet. Run \`awb migrate\` to install the ` +
+        `starter catalog, or create ${directory}/<id>/ yourself.`
+    );
   }
   const shown = available.slice(0, 10).join(", ");
   const more = available.length > 10 ? `, and ${available.length - 10} more` : "";

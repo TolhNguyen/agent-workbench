@@ -830,7 +830,8 @@ function formatMigration(result) {
     `Workspace migration complete: ${result.from} -> ${result.to}`,
     `Changed: ${result.changed}`,
     `Tasks updated: ${result.tasksUpdated}`,
-    `Proposals updated: ${result.proposalsUpdated}`
+    `Proposals updated: ${result.proposalsUpdated}`,
+    `Catalog files installed: ${result.catalogFilesWritten}`
   ];
   const renames = { ...result.renamedTasks, ...result.renamedProposals };
   if (Object.keys(renames).length) {
@@ -873,7 +874,13 @@ function formatProfileStatus(status) {
     ...status.questions.map(
       (question) =>
         `- ${question.id}${question.required ? " (required)" : ""}: ${question.prompt}` +
-        (question.catalog ? `\n  Choose from ${question.catalog}: ${status.catalog[question.catalog].join(", ")}` : "")
+        (question.catalog
+          ? `\n  Choose from ${question.catalog}: ${
+              status.catalog[question.catalog].length
+                ? status.catalog[question.catalog].join(", ")
+                : "(none defined yet — run `awb migrate` to install the starter catalog)"
+            }`
+          : "")
     )
   ].join("\n");
 }
@@ -999,6 +1006,15 @@ Exit codes:
     relation: `Relationship commands:
   awb relation add <from> <type> <to> [--description <text>] [--contract <path>]
   awb relation list`,
+    role: `Role commands:
+  awb role list
+  awb role show <role-id>`,
+    skill: `Skill commands:
+  awb skill list
+  awb skill show <skill-id>`,
+    workflow: `Workflow commands:
+  awb workflow list
+  awb workflow show <workflow-id>`,
     task: `Task commands:
   awb task create --title <text> --role <id> --project <id> [--project <id>]
                   [--primary <id>] [--audience <text>] [--browser <url>]

@@ -4,8 +4,11 @@ Status: design, approved 2026-08-27. Targets Agent Workbench Core 0.4.0.
 
 `formatVersion` stays `0.3`. Everything here is a backward-compatible addition:
 new commands, and one optional property in `.awb/workspace.json` that older
-Core ignores and newer Core reads as "incomplete" when absent. No migration
-step is required, and `awb migrate` is unchanged.
+Core ignores and newer Core reads as "incomplete" when absent. No `formatVersion`
+migration step is required to keep using an existing workspace, but `awb migrate`
+does gain a job: installing the starter capability catalog into any workspace
+that predates it (see §4.1), because without that catalog an existing workspace
+has no way to satisfy the default role or answer the onboarding interview.
 
 ## 1. Problem
 
@@ -75,6 +78,14 @@ and `initWorkspace` writes it with `overwrite: false`, matching how the existing
 templates are handled. The files are also committed to this repository, because
 the repository is itself an initialized workspace.
 
+`awb migrate` writes the same catalog, also with `overwrite: false`, so a
+workspace created before this catalog existed is not stranded with empty
+`roles/`, `skills/`, and `workflows/` directories and no way to satisfy the
+default role or answer the onboarding interview. This does not backfill the
+onboarding flag (see §4.4) — catalog files are a distinct concern, and
+`overwrite: false` guarantees a user's own catalog entries are never
+clobbered by a re-run.
+
 ### 4.2 Discovery commands
 
 ```
@@ -115,7 +126,9 @@ a historical fact, not a defect to be fixed.
 A workspace without the key is treated as incomplete. `schemas/workspace.schema.json`
 gains a matching optional property. `migrateWorkspace` does not backfill it:
 absence already means incomplete, and the flag is set by completing onboarding,
-never by migration.
+never by migration. (`migrateWorkspace` does install the starter capability
+catalog — see §4.1 — but that is a different concern from the onboarding flag
+and does not mark onboarding complete.)
 
 ### 4.5 `awb profile status`
 

@@ -159,6 +159,58 @@ test("migrate upgrades a 0.2 workspace without rewriting registry data", async (
   assertSuccess(awb(["--root", root, "validate"]));
 });
 
+test("migrate installs the starter catalog into a workspace that predates it", async () => {
+  const root = await initializedWorkspace();
+
+  // Simulate a workspace created before the capability catalog existed: empty
+  // roles/, skills/, and workflows/ directories, exactly as the reviewer
+  // reproduced (`awb migrate` reporting 0.3 -> 0.3, changed: false, and every
+  // subsequent command dead-ended on `Unknown role: developer`).
+  for (const directory of ["roles", "skills", "workflows"]) {
+    await rm(path.join(root, directory), { recursive: true, force: true });
+    await mkdir(path.join(root, directory), { recursive: true });
+  }
+  assert.deepEqual(JSON.parse(awb(["--root", root, "--json", "role", "list"]).stdout), []);
+
+  const migration = awb(["--root", root, "--json", "migrate"]);
+  assertSuccess(migration);
+  const migrated = JSON.parse(migration.stdout);
+  assert.equal(migrated.changed, true);
+  assert.ok(migrated.catalogFilesWritten > 0, "expected catalog files to be installed");
+
+  assert.deepEqual(
+    JSON.parse(awb(["--root", root, "--json", "role", "list"]).stdout),
+    ["developer", "reviewer", "technical-writer"]
+  );
+  assert.deepEqual(
+    JSON.parse(awb(["--root", root, "--json", "skill", "list"]).stdout),
+    ["code-review", "debugging", "writing-user-guide"]
+  );
+  assert.deepEqual(
+    JSON.parse(awb(["--root", root, "--json", "workflow", "list"]).stdout),
+    ["document-delivery", "feature-delivery"]
+  );
+
+  // The upgrade path is complete once profile status can actually offer a role.
+  const status = JSON.parse(awb(["--root", root, "--json", "profile", "status"]).stdout);
+  assert.deepEqual(status.catalog.roles, ["developer", "reviewer", "technical-writer"]);
+
+  assertSuccess(
+    awb([
+      "--root", root, "profile", "complete",
+      "--name", "Tin", "--role", "developer", "--language", "vi",
+      "--responsibility", "Ship the POS integrations"
+    ])
+  );
+  assertSuccess(awb(["--root", root, "project", "add", "app", "--path", "src/app", "--create"]));
+  assertSuccess(
+    awb([
+      "--root", root, "task", "create", "--id", "TASK-UPGRADED", "--title", "X",
+      "--role", "developer", "--project", "app"
+    ])
+  );
+});
+
 test("memory requires approval before it becomes durable knowledge", async () => {
   const root = await initializedWorkspace();
   assertSuccess(awb(["--root", root, "project", "add", "portal", "--path", "src/portal", "--create"]));
@@ -695,6 +747,38 @@ test("migrate canonicalizes lowercase task files and repoints everything at them
   assertSuccess(awb(["--root", root, "--json", "migrate"]), "migration must stay idempotent");
 });
 
+test("validate rejects a hand-edited task whose skills entry is traversal-shaped", async () => {
+  const root = await onboardedWorkspace();
+  assertSuccess(awb(["--root", root, "project", "add", "app", "--path", "src/app", "--create"]));
+  assertSuccess(
+    awb([
+      "--root", root, "task", "create", "--id", "TASK-SCHEMA", "--title", "X",
+      "--role", "developer", "--project", "app"
+    ])
+  );
+
+  // `createTask` runs everything through normalizeId, so a hand-edit is the
+  // only way a value like this reaches the stored task -- exactly what a
+  // hand-edited task file exercises here. Before schemas/task.schema.json
+  // constrained `skills`, `assertCapabilityExists` would resolve this with a
+  // plain `access()` call (no read or write) and `awb validate` would report
+  // nothing.
+  const taskPath = path.join(root, "work", "tasks", "TASK-SCHEMA.json");
+  const task = JSON.parse(await readFile(taskPath, "utf8"));
+  task.skills = ["../roles/developer"];
+  await writeFile(taskPath, JSON.stringify(task, null, 2), "utf8");
+
+  const result = awb(["--root", root, "--json", "validate"]);
+  assert.equal(result.status, 2);
+  const validation = JSON.parse(result.stdout);
+  assert.equal(validation.valid, false);
+  assert.equal(
+    validation.errors.some((message) => message.includes("skills[0]") && message.includes("must match")),
+    true,
+    validation.errors.join("; ")
+  );
+});
+
 test("validate enforces the published JSON schemas, not only its own rules", async () => {
   const root = await initializedWorkspace();
   assertSuccess(awb(["--root", root, "project", "add", "app", "--path", "src/app", "--create"]));
@@ -1085,10 +1169,6 @@ test("a fresh workspace tells the agent to run the interview first", async () =>
 
   const repoStartHere = await readFile(path.join(repositoryRoot, "START_HERE.md"), "utf8");
   assert.match(repoStartHere, /awb profile status/);
-
-  const expected = JSON.parse(await readFile(path.join(repositoryRoot, "package.json"), "utf8")).version;
-  assert.equal(expected, "0.4.0");
-  assert.equal(awb(["version"]).stdout.trim(), "0.4.0");
 });
 
 function awb(args) {

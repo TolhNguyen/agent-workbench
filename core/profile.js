@@ -3,6 +3,7 @@ import path from "node:path";
 import { PROFILE_STYLES } from "./profile-styles.js";
 import {
   PACKAGE_VERSION,
+  USER_PROFILE_PATH,
   exists,
   getKnowledgeItems,
   getKnowledgeProviders,
@@ -32,7 +33,7 @@ export async function buildProfile(root) {
       listDirectDirectories(root, "skills"),
       listDirectDirectories(root, "workflows")
     ]);
-  const profilePath = path.join(root, "user", "PROFILE.md");
+  const profilePath = path.join(root, USER_PROFILE_PATH);
   const profileMarkdown = (await exists(profilePath)) ? await readFile(profilePath, "utf8") : "# User Profile";
   const activeTasks = tasks.filter((task) => task.status === "active");
   const candidateProposals = proposals.filter((proposal) => proposal.status === "candidate");
