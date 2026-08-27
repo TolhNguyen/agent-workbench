@@ -40,7 +40,9 @@ import { callProviderTool, listProviderTools, probeProvider, recallCoreMemory, s
 // Boolean flags are recognised globally rather than per command: the command is
 // only known once positionals are parsed, and whether a flag consumes the next
 // token has to be decided during that same pass.
-const BOOLEAN_OPTIONS = new Set(["json", "create", "replace", "stdin", "help", "verified", "force"]);
+const BOOLEAN_OPTIONS = new Set([
+  "json", "create", "replace", "stdin", "help", "verified", "force", "allow-nested"
+]);
 
 const GLOBAL_OPTIONS = ["root", "json", "output", "help"];
 
@@ -48,7 +50,7 @@ const GLOBAL_OPTIONS = ["root", "json", "output", "help"];
 // swallowed silently: it consumes the following token as its value and leaves
 // the option the user meant at its default.
 const COMMAND_OPTIONS = {
-  init: ["name", "description"],
+  init: ["name", "description", "allow-nested"],
   migrate: [],
   validate: [],
   "project add": ["name", "path", "description", "tag", "create", "mode", "external-path", "repo"],
@@ -129,7 +131,8 @@ async function dispatch({ io, parsed, group, action, positionals, wantsJson }) {
     const root = path.resolve(value(parsed, "root") || io.cwd);
     const result = await initWorkspace(root, {
       name: value(parsed, "name") || "Agent Workbench",
-      description: value(parsed, "description") || ""
+      description: value(parsed, "description") || "",
+      allowNested: has(parsed, "allow-nested")
     });
     emitResult(io, result, wantsJson, () => `Initialized ${result.name}\nRoot: ${result.root}\nFormat: ${result.formatVersion}`);
     return { exitCode: 0, result };

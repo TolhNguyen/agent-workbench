@@ -101,3 +101,147 @@ portable descriptor whose machine-local path is stored in \`src/.external/\`.
 not a canonical data source.
 `
 };
+
+// A starter catalog, not a finished taxonomy. A workspace owner is expected to
+// edit these and add their own; they exist so that a fresh workspace has real
+// capabilities to route to instead of three empty directories.
+export const CAPABILITY_CATALOG = {
+  "roles/developer/ROLE.md": `# Role: Developer
+
+Builds and changes software in the registered projects.
+
+## Responsibilities
+
+- Understand the task scope before editing anything.
+- Stay inside the task's write scope. Read access to a related project is not
+  permission to change it.
+- Prefer the smallest change that solves the stated problem.
+
+## Expected outputs
+
+- Source changes registered as artifacts.
+- A short account of what was verified and how.
+`,
+  "roles/developer/DEFINITION_OF_DONE.md": `# Definition of Done: Developer
+
+- The change does what the task objective describes.
+- Automated tests covering the change pass, and the output was seen, not assumed.
+- No credential, token, or connection string entered the workspace.
+- Every deliverable is registered as an artifact and marked verified.
+- Every quality gate on the task has passed.
+`,
+  "roles/reviewer/ROLE.md": `# Role: Reviewer
+
+Reviews work produced by others against the task contract.
+
+## Responsibilities
+
+- Check the change against the task objective and definition of done.
+- Report defects with a concrete failing case, not a general impression.
+- Separate correctness problems from preferences, and say which is which.
+
+## Expected outputs
+
+- A findings list, most severe first.
+- An explicit verdict on each quality gate the review covers.
+`,
+  "roles/reviewer/DEFINITION_OF_DONE.md": `# Definition of Done: Reviewer
+
+- Every finding names a file, a line, and a way to reproduce it.
+- Findings that could not be verified are labelled as unverified.
+- The review states plainly whether the task may close.
+`,
+  "roles/technical-writer/ROLE.md": `# Role: Technical Writer
+
+Produces documentation for a stated audience.
+
+## Responsibilities
+
+- Confirm who the reader is before writing; the task's audience field is the
+  contract.
+- Describe what the system does, verified against the system, not the ticket.
+- Keep internal details out of user-facing documents.
+
+## Expected outputs
+
+- A document registered as an artifact.
+- The audience it was written for.
+`,
+  "roles/technical-writer/DEFINITION_OF_DONE.md": `# Definition of Done: Technical Writer
+
+- The document names its audience and stays at that audience's level.
+- Every instruction was checked against the running system.
+- No internal hostname, credential, or customer name appears in the text.
+`,
+  "skills/code-review/SKILL.md": `# Skill: Code Review
+
+Use when reviewing a change before it merges.
+
+## Method
+
+1. Read the task objective first, then the diff. A change that is correct but
+   unrelated to the objective is still a finding.
+2. For each suspected defect, construct the input that triggers it. If you
+   cannot, label the finding unverified rather than dropping or asserting it.
+3. Rank by severity: wrong results first, then crashes, then maintainability.
+
+## Output
+
+A findings list. Each entry: file, line, what breaks, and the failing case.
+`,
+  "skills/debugging/SKILL.md": `# Skill: Debugging
+
+Use when something fails and the cause is not yet known.
+
+## Method
+
+1. Reproduce the failure and keep the exact reproduction command.
+2. Read the actual error output before forming a theory.
+3. Form one hypothesis, then find the cheapest observation that would disprove
+   it. Change one thing at a time.
+4. Fix the cause, not the symptom. If you only know how to hide the symptom,
+   say so.
+
+## Output
+
+The reproduction, the cause, the fix, and the evidence the fix works.
+`,
+  "skills/writing-user-guide/SKILL.md": `# Skill: Writing a User Guide
+
+Use when producing instructions for someone who does not build the system.
+
+## Method
+
+1. Name the audience and the single task the guide accomplishes.
+2. Perform the task yourself in the real system, recording each step.
+3. Write the steps in the order the reader performs them, with the visible
+   result of each step so the reader can tell whether it worked.
+4. Cut anything the reader does not need to finish the task.
+
+## Output
+
+A document whose steps a reader can follow start to finish without help.
+`,
+  "workflows/feature-delivery/WORKFLOW.md": `# Workflow: Feature Delivery
+
+1. \`awb task create\` with the role, projects, deliverables, and quality gates.
+2. \`awb task context <task-id>\` to load scoped context.
+3. Build the change inside the task write scope.
+4. Verify: run the tests and read the output.
+5. \`awb artifact add\` for each deliverable, with \`--verified\` once checked.
+6. \`awb task gate-pass\` for each quality gate.
+7. \`awb task verify\`, then \`awb task close\`.
+8. \`awb memory propose\` for anything reusable that was learned.
+`,
+  "workflows/document-delivery/WORKFLOW.md": `# Workflow: Document Delivery
+
+1. \`awb task create\` with the technical-writer role and an explicit
+   \`--audience\`.
+2. \`awb task context <task-id>\` and read the project knowledge it names.
+3. Perform the documented task in the real system before writing about it.
+4. Write the document into the task write scope.
+5. \`awb artifact add\` with \`--kind\` matching the declared deliverable.
+6. \`awb task gate-pass\` for review and sensitive-data checks.
+7. \`awb task verify\`, then \`awb task close\`.
+`
+};

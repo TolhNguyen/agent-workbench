@@ -10,7 +10,7 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
-import { DIRECTORY_READMES, START_HERE, USER_PROFILE } from "./templates.js";
+import { CAPABILITY_CATALOG, DIRECTORY_READMES, START_HERE, USER_PROFILE } from "./templates.js";
 import { normalizeProviderConfig } from "./providers.js";
 import { loadSchemas, validateAgainstSchema } from "./schema.js";
 
@@ -128,21 +128,39 @@ export function workspaceRelative(root, input, { requireSource = false } = {}) {
   return normalized;
 }
 
-export async function findWorkspaceRoot(start = process.cwd()) {
+export async function locateWorkspace(start = process.cwd()) {
   let current = path.resolve(start);
   while (true) {
     if (await exists(path.join(current, ".awb", "workspace.json"))) return current;
     const parent = path.dirname(current);
-    if (parent === current) break;
+    if (parent === current) return null;
     current = parent;
   }
-  throw new Error("No Agent Workbench found. Run `awb init` or pass --root.");
 }
 
-export async function initWorkspace(root, { name = "Agent Workbench", description = "" } = {}) {
+export async function findWorkspaceRoot(start = process.cwd()) {
+  const found = await locateWorkspace(start);
+  if (!found) throw new Error("No Agent Workbench found. Run `awb init` or pass --root.");
+  return found;
+}
+
+export async function initWorkspace(
+  root,
+  { name = "Agent Workbench", description = "", allowNested = false } = {}
+) {
   const target = path.resolve(root);
   const marker = path.join(target, ".awb", "workspace.json");
   if (await exists(marker)) throw new Error(`A workspace already exists at ${target}.`);
+  if (!allowNested) {
+    // A workspace inside another workspace is almost always a mistyped --root:
+    // findWorkspaceRoot walks upward and would silently pick the inner one.
+    const enclosing = await locateWorkspace(path.dirname(target));
+    if (enclosing) {
+      throw new Error(
+        `${target} is already inside the workspace at ${enclosing}. Use that workspace, or pass --allow-nested if a separate one is intended.`
+      );
+    }
+  }
 
   const directories = [
     ".awb",
@@ -183,6 +201,9 @@ export async function initWorkspace(root, { name = "Agent Workbench", descriptio
   await writeText(target, "knowledge/README.md", DIRECTORY_READMES.knowledge, { overwrite: false });
   await writeText(target, "src/README.md", DIRECTORY_READMES.src, { overwrite: false });
   await writeText(target, "profile/README.md", DIRECTORY_READMES.profile, { overwrite: false });
+  for (const [relativePath, content] of Object.entries(CAPABILITY_CATALOG)) {
+    await writeText(target, relativePath, content, { overwrite: false });
+  }
   return { root: target, name, formatVersion: FORMAT_VERSION };
 }
 

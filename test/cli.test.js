@@ -784,6 +784,41 @@ test("the version is reported for every spelling of the flag", async () => {
   assert.match(awb([]).stdout, /^Agent Workbench Core /);
 });
 
+test("init ships a starter capability catalog", async () => {
+  const root = await initializedWorkspace();
+
+  assert.deepEqual((await readdir(path.join(root, "roles"))).sort(), [
+    "README.md",
+    "developer",
+    "reviewer",
+    "technical-writer"
+  ]);
+  assert.equal(await fileExists(path.join(root, "roles", "developer", "ROLE.md")), true);
+  assert.equal(
+    await fileExists(path.join(root, "roles", "developer", "DEFINITION_OF_DONE.md")),
+    true
+  );
+  assert.equal(await fileExists(path.join(root, "skills", "code-review", "SKILL.md")), true);
+  assert.equal(
+    await fileExists(path.join(root, "workflows", "feature-delivery", "WORKFLOW.md")),
+    true
+  );
+});
+
+test("init refuses to nest a workspace inside an existing one", async () => {
+  const root = await initializedWorkspace();
+  const nested = path.join(root, "src", "web", "sub");
+
+  const refused = awb(["init", "--root", nested, "--name", "Nested"]);
+  assert.equal(refused.status, 1);
+  assert.match(refused.stderr, /already inside the workspace at/);
+  assert.equal(await fileExists(path.join(nested, ".awb", "workspace.json")), false);
+
+  const allowed = awb(["init", "--root", nested, "--name", "Nested", "--allow-nested"]);
+  assertSuccess(allowed);
+  assert.equal(await fileExists(path.join(nested, ".awb", "workspace.json")), true);
+});
+
 function awb(args) {
   return spawnSync(process.execPath, [cli, ...args], {
     cwd: repositoryRoot,
