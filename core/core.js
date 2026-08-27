@@ -493,7 +493,23 @@ export async function createTask(root, input) {
   }
   const primaryProject = input.primaryProject || projects[0];
   if (!projects.includes(primaryProject)) throw new Error("The primary project must be included in task projects.");
-  const primaryRole = normalizeId(input.primaryRole || "developer", "Role ID");
+  const primaryRole = await assertCapabilityExists(
+    root,
+    "role",
+    normalizeId(input.primaryRole || "developer", "Role ID")
+  );
+  const supportingRoles = [];
+  for (const role of unique(input.supportingRoles ?? [])) {
+    supportingRoles.push(await assertCapabilityExists(root, "role", normalizeId(role, "Role ID")));
+  }
+  const skills = [];
+  for (const skill of unique(input.skills ?? [])) {
+    skills.push(await assertCapabilityExists(root, "skill", normalizeId(skill, "Skill ID")));
+  }
+  const workflows = [];
+  for (const workflow of unique(input.workflows ?? [])) {
+    workflows.push(await assertCapabilityExists(root, "workflow", normalizeId(workflow, "Workflow ID")));
+  }
   const readScopes = unique(input.readScopes?.length ? input.readScopes : projects.map((project) => `project:${project}`))
     .map((scope) => normalizeAccessScope(scope, projects));
   const writeScopes = unique(
@@ -514,11 +530,11 @@ export async function createTask(root, input) {
     objective: input.objective || "",
     audience: input.audience || "",
     primaryRole,
-    supportingRoles: unique(input.supportingRoles ?? []).map((role) => normalizeId(role, "Role ID")),
+    supportingRoles,
     primaryProject,
     projects,
-    skills: unique(input.skills ?? []).map((skill) => normalizeId(skill, "Skill ID")),
-    workflows: unique(input.workflows ?? []).map((workflow) => normalizeId(workflow, "Workflow ID")),
+    skills,
+    workflows,
     browserTargets,
     readScopes,
     writeScopes,
@@ -1202,6 +1218,21 @@ export async function validateWorkspace(root) {
     const tasks = await listTasks(root);
     for (const task of tasks) {
       errors.push(...validateAgainstSchema(task, schemas.task, `Task ${task.id}`));
+      // A capability removed after a task closed is history, not a defect.
+      const sink = task.status === "active" ? errors : warnings;
+      const references = [
+        ["role", [task.primaryRole, ...(task.supportingRoles ?? [])]],
+        ["skill", task.skills ?? []],
+        ["workflow", task.workflows ?? []]
+      ];
+      for (const [kind, ids] of references) {
+        for (const id of ids) {
+          if (!id) continue;
+          if (!(await exists(path.join(root, capabilityDirectory(kind), id)))) {
+            sink.push(`Task ${task.id} references unknown ${kind}: ${id}`);
+          }
+        }
+      }
       for (const project of task.projects ?? []) {
         if (!projectIds.has(project)) errors.push(`Task ${task.id} references unknown project: ${project}`);
       }

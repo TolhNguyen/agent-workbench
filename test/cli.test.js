@@ -336,7 +336,7 @@ test("CS documentation task enforces write scope and closes only after verified 
       "--audience",
       "end-user",
       "--role",
-      "cs",
+      "technical-writer",
       "--primary",
       "hvh-user-guides",
       "--project",
@@ -842,6 +842,68 @@ test("capability catalogs are discoverable for every kind", async () => {
   const missing = awb(["--root", root, "role", "show", "nope"]);
   assert.equal(missing.status, 1);
   assert.match(missing.stderr, /Unknown role: nope\. Available: developer, reviewer, technical-writer\./);
+});
+
+test("a task cannot name a role, skill, or workflow that does not exist", async () => {
+  const root = await initializedWorkspace();
+  assertSuccess(awb(["--root", root, "project", "add", "app", "--path", "src/app", "--create"]));
+
+  const badRole = awb([
+    "--root", root, "task", "create", "--id", "TASK-A", "--title", "X",
+    "--role", "khong-co-that", "--project", "app"
+  ]);
+  assert.equal(badRole.status, 1);
+  assert.match(badRole.stderr, /Unknown role: khong-co-that\. Available: developer/);
+
+  const badSkill = awb([
+    "--root", root, "task", "create", "--id", "TASK-B", "--title", "X",
+    "--role", "developer", "--skill", "cung-khong-co", "--project", "app"
+  ]);
+  assert.equal(badSkill.status, 1);
+  assert.match(badSkill.stderr, /Unknown skill: cung-khong-co/);
+
+  const badWorkflow = awb([
+    "--root", root, "task", "create", "--id", "TASK-C", "--title", "X",
+    "--role", "developer", "--workflow", "bia-dat", "--project", "app"
+  ]);
+  assert.equal(badWorkflow.status, 1);
+  assert.match(badWorkflow.stderr, /Unknown workflow: bia-dat/);
+
+  assert.deepEqual(await readdir(path.join(root, "work", "tasks")), [], "no task file may be left behind");
+});
+
+test("validate errors on a dangling reference from an active task and warns for a closed one", async () => {
+  const root = await initializedWorkspace();
+  assertSuccess(awb(["--root", root, "project", "add", "app", "--path", "src/app", "--create"]));
+  assertSuccess(
+    awb([
+      "--root", root, "task", "create", "--id", "TASK-D", "--title", "X",
+      "--role", "reviewer", "--project", "app"
+    ])
+  );
+
+  // Remove the role after the task was created.
+  await rm(path.join(root, "roles", "reviewer"), { recursive: true, force: true });
+
+  let validation = JSON.parse(awb(["--root", root, "--json", "validate"]).stdout);
+  assert.equal(validation.valid, false);
+  assert.equal(
+    validation.errors.some((message) => message === "Task TASK-D references unknown role: reviewer"),
+    true,
+    validation.errors.join("; ")
+  );
+
+  const task = JSON.parse(await readFile(path.join(root, "work", "tasks", "TASK-D.json"), "utf8"));
+  task.status = "closed";
+  await writeFile(path.join(root, "work", "tasks", "TASK-D.json"), JSON.stringify(task, null, 2), "utf8");
+
+  validation = JSON.parse(awb(["--root", root, "--json", "validate"]).stdout);
+  assert.equal(validation.valid, true, validation.errors.join("; "));
+  assert.equal(
+    validation.warnings.some((message) => message === "Task TASK-D references unknown role: reviewer"),
+    true,
+    validation.warnings.join("; ")
+  );
 });
 
 function awb(args) {
