@@ -43,6 +43,7 @@ import { callProviderTool, listProviderTools, probeProvider, recallCoreMemory, s
 import {
   abandonResearch,
   addResearchAttempt,
+  concludeResearch,
   getResearch,
   listResearch,
   startResearch
@@ -72,6 +73,7 @@ const COMMAND_OPTIONS = {
   "relation list": [],
   "research start": ["id", "question", "plan", "tag"],
   "research attempt": ["tried", "result", "note"],
+  "research conclude": ["text", "title", "scope"],
   "research abandon": ["reason"],
   "research list": ["status"],
   "research show": [],
@@ -391,6 +393,20 @@ async function researchCommand(root, action, positionals, parsed) {
       data: result,
       text: () =>
         `Attempt ${result.attempt.n} recorded on ${result.research.id}: ${result.attempt.result}`
+    };
+  }
+  if (action === "conclude") {
+    const id = positionals[0];
+    if (!id) throw new Error("Usage: awb research conclude <research-id> --text <conclusion>");
+    const outcome = await concludeResearch(root, id, {
+      text: value(parsed, "text"),
+      title: value(parsed, "title"),
+      scope: value(parsed, "scope")
+    });
+    return {
+      data: outcome,
+      text: () =>
+        `Research concluded: ${outcome.research.id}\nProposal created: ${outcome.proposal.id}\nApprove it with \`awb memory approve ${outcome.proposal.id}\`.`
     };
   }
   if (action === "abandon") {

@@ -1248,6 +1248,51 @@ test("research runs before any project exists and before onboarding", async () =
   assert.match(missing.stderr, /Unknown research record: RESEARCH-NOPE/);
 });
 
+test("concluding research routes through the existing memory approval path", async () => {
+  const root = await initializedWorkspace();
+  const record = JSON.parse(
+    awb([
+      "--root", root, "--json", "research", "start",
+      "--question", "Does Shopify push order webhooks?", "--tag", "shopify"
+    ]).stdout
+  );
+  assertSuccess(
+    awb([
+      "--root", root, "research", "attempt", record.id,
+      "--tried", "Subscribe to orders/create", "--result", "passed"
+    ])
+  );
+
+  const concluded = awb([
+    "--root", root, "--json", "research", "conclude", record.id,
+    "--text", "Use the orders/create webhook; polling hits 429 at 40 req/min."
+  ]);
+  assertSuccess(concluded);
+  const outcome = JSON.parse(concluded.stdout);
+  assert.equal(outcome.research.status, "concluded");
+  assert.match(outcome.proposal.id, /^LEARN-/);
+  assert.equal(outcome.research.proposalId, outcome.proposal.id);
+  assert.equal(outcome.proposal.sourceRef, record.id);
+  assert.equal(outcome.proposal.scope, "user");
+
+  // The conclusion is a candidate until the person approves it, exactly like
+  // any other lesson. No second approval path.
+  const pending = JSON.parse(awb(["--root", root, "--json", "memory", "list", "--status", "candidate"]).stdout);
+  assert.equal(pending.length, 1);
+  assert.equal(JSON.parse(awb(["--root", root, "--json", "knowledge", "list"]).stdout).length, 0);
+
+  assertSuccess(awb(["--root", root, "memory", "approve", outcome.proposal.id, "--knowledge-id", "shopify.webhooks"]));
+  const knowledge = JSON.parse(awb(["--root", root, "--json", "knowledge", "list"]).stdout);
+  assert.equal(knowledge.length, 1);
+  assert.equal(knowledge[0].id, "shopify.webhooks");
+
+  const again = awb(["--root", root, "research", "conclude", record.id, "--text", "Something else"]);
+  assert.equal(again.status, 1);
+  assert.match(again.stderr, /it is concluded/);
+
+  assertSuccess(awb(["--root", root, "validate"]));
+});
+
 function awb(args) {
   return spawnSync(process.execPath, [cli, ...args], {
     cwd: repositoryRoot,

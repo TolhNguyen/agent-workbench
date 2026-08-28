@@ -5,6 +5,7 @@ import {
   makeId,
   normalizeId,
   nowIso,
+  proposeMemory,
   readJson,
   touchWorkspace,
   unique,
@@ -51,7 +52,7 @@ export async function getResearch(root, id) {
 }
 
 export async function listResearch(root, { status } = {}) {
-  const directory = path.join(root, "work", "research");
+  const directory = path.join(root, RESEARCH_DIRECTORY);
   if (!(await exists(directory))) return [];
   const files = (await readdir(directory)).filter((file) => file.endsWith(".json")).sort();
   const records = [];
@@ -83,6 +84,27 @@ export async function addResearchAttempt(root, id, input = {}) {
   record.updatedAt = attempt.at;
   await saveResearch(root, record);
   return { research: record, attempt };
+}
+
+// A conclusion is a candidate lesson, not yet knowledge. Routing it through
+// proposeMemory keeps one approval path rather than growing a second one.
+export async function concludeResearch(root, id, input = {}) {
+  const record = await requireOpenResearch(root, id, "conclude");
+  const conclusion = requiredText(input.text, "Conclusion text");
+  const proposal = await proposeMemory(root, {
+    kind: "finding",
+    title: input.title || record.question,
+    scope: input.scope || "user",
+    text: conclusion,
+    tags: record.tags,
+    sourceRef: record.id
+  });
+  record.status = "concluded";
+  record.conclusion = conclusion;
+  record.proposalId = proposal.id;
+  record.updatedAt = nowIso();
+  await saveResearch(root, record);
+  return { research: record, proposal };
 }
 
 export async function abandonResearch(root, id, { reason = "" } = {}) {
