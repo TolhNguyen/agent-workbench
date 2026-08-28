@@ -1,0 +1,8 @@
+{
+  "id": "debugging",
+  "title": "Debugging",
+  "useWhen": "Something fails and the cause is not yet known.",
+  "inputs": ["a reproduction of the failure"],
+  "outputs": ["the cause", "the fix", "evidence the fix works"],
+  "verify": ["the reproduction no longer fails", "the cause was fixed, not the symptom"]
+}

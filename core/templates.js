@@ -193,6 +193,15 @@ Use when reviewing a change before it merges.
 
 A findings list. Each entry: file, line, what breaks, and the failing case.
 `,
+  "skills/code-review/skill.json": `{
+  "id": "code-review",
+  "title": "Code Review",
+  "useWhen": "Reviewing a change before it merges.",
+  "inputs": ["the task objective", "the diff under review"],
+  "outputs": ["a findings list ranked by severity"],
+  "verify": ["every finding names a file, a line, and a failing case"]
+}
+`,
   "skills/debugging/SKILL.md": `# Skill: Debugging
 
 Use when something fails and the cause is not yet known.
@@ -210,6 +219,15 @@ Use when something fails and the cause is not yet known.
 
 The reproduction, the cause, the fix, and the evidence the fix works.
 `,
+  "skills/debugging/skill.json": `{
+  "id": "debugging",
+  "title": "Debugging",
+  "useWhen": "Something fails and the cause is not yet known.",
+  "inputs": ["a reproduction of the failure"],
+  "outputs": ["the cause", "the fix", "evidence the fix works"],
+  "verify": ["the reproduction no longer fails", "the cause was fixed, not the symptom"]
+}
+`,
   "skills/writing-user-guide/SKILL.md": `# Skill: Writing a User Guide
 
 Use when producing instructions for someone who does not build the system.
@@ -225,6 +243,80 @@ Use when producing instructions for someone who does not build the system.
 ## Output
 
 A document whose steps a reader can follow start to finish without help.
+`,
+  "skills/writing-user-guide/skill.json": `{
+  "id": "writing-user-guide",
+  "title": "Writing a User Guide",
+  "useWhen": "Producing instructions for someone who does not build the system.",
+  "inputs": ["the audience", "the single task the guide accomplishes"],
+  "outputs": ["a document a reader can follow start to finish"],
+  "verify": ["every step was performed in the real system before it was written"]
+}
+`,
+  "skills/research/SKILL.md": `# Skill: Research
+
+Use before committing to an approach you do not yet understand.
+
+## Method
+
+1. Write the question down first, in one sentence, and bound it: what answer
+   would let you stop looking?
+2. Record the plan before searching. A plan you cannot write is a question you
+   have not narrowed enough.
+3. Try one thing at a time and record every attempt, **especially the ones that
+   fail**. "Polling returned 429 after 40 requests" is the finding; the working
+   approach is only half the value.
+4. Stop when the question is answered, not when something works. Those differ.
+5. Conclude into a proposal so the person decides whether it becomes knowledge.
+
+## Commands
+
+\`\`\`bash
+awb research start --question "..." --plan "..."
+awb research attempt <id> --tried "..." --result failed --note "..."
+awb research conclude <id> --text "..."
+\`\`\`
+
+## Output
+
+An answered question, an attempt log the next person can read, and a proposal
+awaiting approval.
+`,
+  "skills/research/skill.json": `{
+  "id": "research",
+  "title": "Research",
+  "useWhen": "You must understand something before you can decide how to build it.",
+  "inputs": ["a question worth bounding"],
+  "outputs": ["an attempt log including the failures", "a conclusion proposed for approval"],
+  "verify": ["the question is answered, not merely worked around", "every failed attempt is recorded"]
+}
+`,
+  "skills/api-integration/SKILL.md": `# Skill: API Integration
+
+Use when connecting our system to a third-party API.
+
+## Method
+
+1. Read the API documentation first and record the authentication method, the
+   rate limits, and how pagination works.
+2. Get one read call working before building anything on top of it.
+3. Keep keys and tokens in environment variables. Nothing secret enters the
+   workspace.
+4. Handle pagination and retry before calling the integration done.
+
+## Output
+
+A working client, and the limits you found written down where the next person
+will look.
+`,
+  "skills/api-integration/skill.json": `{
+  "id": "api-integration",
+  "title": "API Integration",
+  "useWhen": "Connecting our system to a third-party API.",
+  "inputs": ["API documentation", "the authentication method"],
+  "outputs": ["a working client", "recorded rate limits and pagination rules"],
+  "verify": ["one real read call succeeds", "no credential was written into the workspace"]
+}
 `,
   "workflows/feature-delivery/WORKFLOW.md": `# Workflow: Feature Delivery
 
@@ -247,6 +339,27 @@ A document whose steps a reader can follow start to finish without help.
 5. \`awb artifact add\` with \`--kind\` matching the declared deliverable.
 6. \`awb task gate-pass\` for review and sensitive-data checks.
 7. \`awb task verify\`, then \`awb task close\`.
+`,
+  "workflows/research-to-skill/WORKFLOW.md": `# Workflow: Research to Skill
+
+Turning something you had to figure out into something nobody has to figure out
+again.
+
+1. \`awb research start --question "..."\` — bound the question before searching.
+2. \`awb research attempt <id> --tried "..." --result ...\` after each try.
+   Record the failures; they are what save the next person time.
+3. \`awb research conclude <id> --text "..."\` when the question is answered.
+4. \`awb memory approve <proposal-id>\` — you decide whether it becomes knowledge.
+5. If the approach is worth repeating, write it up as a skill:
+   \`skills/<id>/SKILL.md\` for the method and \`skills/<id>/skill.json\` for the
+   contract. \`useWhen\` is the field that lets an agent pick it later, so write
+   that one for a reader who does not already know what the skill does.
+6. \`awb validate\` — a malformed contract is an error, a missing one a warning.
+7. If it should be shared, open a pull request against the distribution. The
+   maintainer decides what the whole team carries.
+
+Do not promote after one success. A skill is a claim that the approach works
+again.
 `
 };
 

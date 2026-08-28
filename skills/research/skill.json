@@ -1,0 +1,8 @@
+{
+  "id": "research",
+  "title": "Research",
+  "useWhen": "You must understand something before you can decide how to build it.",
+  "inputs": ["a question worth bounding"],
+  "outputs": ["an attempt log including the failures", "a conclusion proposed for approval"],
+  "verify": ["the question is answered, not merely worked around", "every failed attempt is recorded"]
+}

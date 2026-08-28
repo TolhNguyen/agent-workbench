@@ -1,0 +1,8 @@
+{
+  "id": "code-review",
+  "title": "Code Review",
+  "useWhen": "Reviewing a change before it merges.",
+  "inputs": ["the task objective", "the diff under review"],
+  "outputs": ["a findings list ranked by severity"],
+  "verify": ["every finding names a file, a line, and a failing case"]
+}

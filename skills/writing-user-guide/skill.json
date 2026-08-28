@@ -1,0 +1,8 @@
+{
+  "id": "writing-user-guide",
+  "title": "Writing a User Guide",
+  "useWhen": "Producing instructions for someone who does not build the system.",
+  "inputs": ["the audience", "the single task the guide accomplishes"],
+  "outputs": ["a document a reader can follow start to finish"],
+  "verify": ["every step was performed in the real system before it was written"]
+}

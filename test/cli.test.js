@@ -184,11 +184,11 @@ test("migrate installs the starter catalog into a workspace that predates it", a
   );
   assert.deepEqual(
     JSON.parse(awb(["--root", root, "--json", "skill", "list"]).stdout).map((entry) => entry.id),
-    ["code-review", "debugging", "writing-user-guide"]
+    ["api-integration", "code-review", "debugging", "research", "writing-user-guide"]
   );
   assert.deepEqual(
     JSON.parse(awb(["--root", root, "--json", "workflow", "list"]).stdout).map((entry) => entry.id),
-    ["document-delivery", "feature-delivery"]
+    ["document-delivery", "feature-delivery", "research-to-skill"]
   );
 
   // The upgrade path is complete once profile status can actually offer a role.
@@ -929,11 +929,11 @@ test("capability catalogs are discoverable for every kind", async () => {
 
   assert.deepEqual(
     JSON.parse(awb(["--root", root, "--json", "skill", "list"]).stdout).map((entry) => entry.id),
-    ["code-review", "debugging", "writing-user-guide"]
+    ["api-integration", "code-review", "debugging", "research", "writing-user-guide"]
   );
   assert.deepEqual(
     JSON.parse(awb(["--root", root, "--json", "workflow", "list"]).stdout).map((entry) => entry.id),
-    ["document-delivery", "feature-delivery"]
+    ["document-delivery", "feature-delivery", "research-to-skill"]
   );
 
   const shown = JSON.parse(awb(["--root", root, "--json", "role", "show", "developer"]).stdout);
@@ -1395,6 +1395,31 @@ test("validate warns for a missing skill contract and errors for a malformed one
     validation.errors.some((message) => message.includes("declares a different id")),
     true,
     validation.errors.join("; ")
+  );
+});
+
+test("every shipped skill carries a contract and the workspace validates clean", async () => {
+  const root = await initializedWorkspace();
+
+  const skills = JSON.parse(awb(["--root", root, "--json", "skill", "list"]).stdout);
+  assert.deepEqual(
+    skills.map((entry) => entry.id),
+    ["api-integration", "code-review", "debugging", "research", "writing-user-guide"]
+  );
+  for (const entry of skills) {
+    assert.ok(entry.useWhen, `shipped skill ${entry.id} must carry a contract`);
+  }
+
+  const workflows = JSON.parse(awb(["--root", root, "--json", "workflow", "list"]).stdout).map((e) => e.id);
+  assert.deepEqual(workflows, ["document-delivery", "feature-delivery", "research-to-skill"]);
+
+  // No "Skill has no contract" warning may remain for the shipped catalog.
+  const validation = JSON.parse(awb(["--root", root, "--json", "validate"]).stdout);
+  assert.equal(validation.valid, true, validation.errors.join("; "));
+  assert.equal(
+    validation.warnings.some((message) => message.includes("has no contract")),
+    false,
+    validation.warnings.join("; ")
   );
 });
 

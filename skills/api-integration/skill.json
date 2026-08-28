@@ -1,0 +1,8 @@
+{
+  "id": "api-integration",
+  "title": "API Integration",
+  "useWhen": "Connecting our system to a third-party API.",
+  "inputs": ["API documentation", "the authentication method"],
+  "outputs": ["a working client", "recorded rate limits and pagination rules"],
+  "verify": ["one real read call succeeds", "no credential was written into the workspace"]
+}
