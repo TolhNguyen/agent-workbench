@@ -1423,6 +1423,16 @@ test("every shipped skill carries a contract and the workspace validates clean",
   );
 });
 
+test("the research loop is documented for a new reader", async () => {
+  const readme = await readFile(path.join(repositoryRoot, "README.md"), "utf8");
+  assert.match(readme, /awb research start/);
+  assert.match(readme, /awb research conclude/);
+
+  const expected = JSON.parse(await readFile(path.join(repositoryRoot, "package.json"), "utf8")).version;
+  assert.equal(expected, "0.5.0");
+  assert.equal(awb(["version"]).stdout.trim(), "0.5.0");
+});
+
 function awb(args) {
   return spawnSync(process.execPath, [cli, ...args], {
     cwd: repositoryRoot,

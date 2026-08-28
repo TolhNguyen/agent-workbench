@@ -1,4 +1,4 @@
-# Agent Workbench 0.4
+# Agent Workbench 0.5
 
 Agent Workbench là **không gian làm việc của bạn với AI**. Nó ghi nhớ bạn là ai,
 bạn phụ trách những hệ thống nào, và những gì đã học được — để mỗi lần bắt đầu
@@ -26,7 +26,7 @@ node --version
 node bin/awb.js version
 ```
 
-Kết quả mong đợi: `v20.x` (hoặc mới hơn) và `0.4.0`. Nếu lệnh thứ hai báo lỗi,
+Kết quả mong đợi: `v20.x` (hoặc mới hơn) và `0.5.0`. Nếu lệnh thứ hai báo lỗi,
 bạn đang đứng sai thư mục — hãy `cd` vào thư mục chứa tệp này.
 
 Mọi lệnh dưới đây đều chạy từ thư mục này.
@@ -208,6 +208,32 @@ node bin/awb.js memory approve LEARN-...
 
 Điều đã học **phải được bạn duyệt** mới trở thành kiến thức chính thức. Trợ lý
 không tự ghi thẳng vào bộ nhớ dài hạn.
+
+## Khi bạn chưa biết cách làm
+
+Trước khi cam kết vào một hướng, hãy tìm hiểu bằng `awb research start` — và
+ghi lại cả những lần thất bại bằng `awb research attempt`, vì đó mới là thứ
+giúp người sau đỡ mất thời gian. Xong thì kết luận bằng
+`awb research conclude`:
+
+```bash
+node bin/awb.js research start --question "Shopify có webhook đơn hàng không?"
+node bin/awb.js research attempt <id> --tried "Poll REST mỗi 30s" --result failed --note "429 sau 40 request/phút"
+node bin/awb.js research attempt <id> --tried "Webhook orders/create" --result passed
+node bin/awb.js research conclude <id> --text "Dùng webhook orders/create; polling dính 429."
+```
+
+`conclude` tạo một đề xuất chờ bạn duyệt — giống mọi bài học khác:
+
+```bash
+node bin/awb.js memory approve <proposal-id>
+```
+
+Nghiên cứu **không cần dự án** và **không bị chặn bởi onboarding**: nó chính là
+thứ giúp bạn quyết định có nên tạo dự án hay không.
+
+Nếu cách làm đó đáng lặp lại, hãy biến nó thành skill — xem
+`workflows/research-to-skill/WORKFLOW.md`.
 
 ---
 

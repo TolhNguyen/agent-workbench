@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.5.0 — 2026-08-28
+
+### Added
+
+- `awb research start|attempt|conclude|abandon|list|show` records a question,
+  the plan for answering it, and every attempt including the failures. Research
+  needs no project and is not gated on onboarding, because it is what tells you
+  whether a project is worth creating.
+- `awb research conclude` creates a memory proposal rather than writing
+  knowledge directly, so a conclusion is approved through the same path as every
+  other lesson.
+- Skills may carry `skills/<id>/skill.json` declaring `useWhen`, `inputs`,
+  `outputs`, and `verify`. `awb skill list --json` returns `useWhen` for every
+  contracted skill, so one call is enough for an agent to choose a skill instead
+  of guessing.
+- `awb task context` reports the `useWhen` of each attached skill.
+- The shipped catalog gains the `research` and `api-integration` skills, the
+  `research-to-skill` workflow, and a contract for every skill.
+
+### Changed
+
+- `awb role|skill|workflow list --json` returns objects rather than id strings,
+  so a single call carries what an agent needs to route.
+- `awb validate` warns for a skill with no contract, errors for a malformed one
+  or one naming a different skill, and validates research records.
+
+`formatVersion` stays `0.3`; no migration is required, and `awb migrate` leaves
+`work/research/` untouched.
+
 ## 0.4.0 — 2026-08-27
 
 ### Added

@@ -1,6 +1,6 @@
 # Agent Workbench Reference
 
-Reference material for Agent Workbench Core 0.4.0. For a step-by-step guide to
+Reference material for Agent Workbench Core 0.5.0. For a step-by-step guide to
 your first session, see [README.md](../README.md) — start there if you are new.
 
 ## Repository layout
@@ -25,6 +25,28 @@ Agent-Workbench/
 ```
 
 Normal user tasks must not modify `core/`, `bin/`, `schemas/`, or `test/`.
+
+## Skill contracts
+
+A skill may carry `skills/<id>/skill.json` beside its `SKILL.md`:
+
+```json
+{
+  "id": "api-integration",
+  "title": "API Integration",
+  "useWhen": "Connecting our system to a third-party API.",
+  "inputs": ["API documentation", "the authentication method"],
+  "outputs": ["a working client", "recorded rate limits and pagination rules"],
+  "verify": ["one real read call succeeds", "no credential was written into the workspace"]
+}
+```
+
+`id`, `title`, and `useWhen` are required and `id` must equal the directory
+name. `useWhen` is what an agent routes on: `awb skill list --json` returns it
+for every contracted skill, so one call is enough to choose.
+
+A missing contract is a warning from `awb validate`; a malformed one is an
+error.
 
 ## Source modes
 

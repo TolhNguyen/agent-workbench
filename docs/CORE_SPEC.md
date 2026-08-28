@@ -46,6 +46,11 @@ at the root, but such files are not required canonical data.
 14. External providers are optional, explicit, bounded read-only recall sources.
 15. Provider output remains derived data until it passes the memory proposal
     approval lifecycle.
+16. Research records answer a question before a project exists; they require no
+    project and are not gated on onboarding.
+17. A research conclusion enters knowledge only through the memory proposal
+    approval lifecycle.
+18. A skill contract is optional; when present it must name its own skill.
 
 ## 3. Standard directories
 

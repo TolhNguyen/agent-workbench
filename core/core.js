@@ -21,7 +21,7 @@ import { normalizeProviderConfig } from "./providers.js";
 import { loadSchemas, validateAgainstSchema } from "./schema.js";
 
 export const FORMAT_VERSION = "0.3";
-export const PACKAGE_VERSION = "0.4.0";
+export const PACKAGE_VERSION = "0.5.0";
 
 export const USER_PROFILE_PATH = "user/PROFILE.md";
 
