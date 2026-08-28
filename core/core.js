@@ -821,7 +821,12 @@ export async function taskContext(root, taskId) {
   const roleFiles = [];
   for (const role of roles) roleFiles.push(...(await listFilesRecursively(root, `roles/${role}`, 20)));
   const skillFiles = [];
-  for (const skill of task.skills ?? []) skillFiles.push(...(await listFilesRecursively(root, `skills/${skill}`, 20)));
+  const skillContracts = [];
+  for (const skill of task.skills ?? []) {
+    skillFiles.push(...(await listFilesRecursively(root, `skills/${skill}`, 20)));
+    const contract = await readSkillContract(root, skill).catch(() => null);
+    if (contract?.useWhen) skillContracts.push({ id: skill, useWhen: contract.useWhen });
+  }
   const workflowFiles = [];
   for (const workflow of task.workflows ?? []) {
     workflowFiles.push(...(await listFilesRecursively(root, `workflows/${workflow}`, 20)));
@@ -847,6 +852,7 @@ export async function taskContext(root, taskId) {
     relatedProjects,
     roleFiles,
     skillFiles,
+    skillContracts,
     workflowFiles,
     knowledge: relevantKnowledge,
     knowledgeTotal: allRelevantKnowledge.length,
@@ -1196,6 +1202,28 @@ export async function listCapabilities(root, kind) {
   return listDirectDirectories(root, capabilityDirectory(kind));
 }
 
+// A SKILL.md says what to do; the contract says what the skill is FOR. Without
+// it an agent has to guess whether a skill fits, which is the failure this
+// exists to remove.
+export async function readSkillContract(root, id) {
+  const relativePath = `skills/${id}/skill.json`;
+  if (!(await exists(path.join(root, relativePath)))) return null;
+  return readJson(root, relativePath);
+}
+
+// One call must carry enough to route on; a list of bare ids sends the agent
+// back for one lookup per skill.
+export async function listCapabilityEntries(root, kind) {
+  const ids = await listCapabilities(root, kind);
+  if (kind !== "skill") return ids.map((id) => ({ id }));
+  const entries = [];
+  for (const id of ids) {
+    const contract = await readSkillContract(root, id).catch(() => null);
+    entries.push(contract ? { id, title: contract.title, useWhen: contract.useWhen } : { id });
+  }
+  return entries;
+}
+
 export async function showCapability(root, kind, id) {
   const label = `${kind.charAt(0).toUpperCase()}${kind.slice(1)} ID`;
   const safeId = await assertCapabilityExists(root, kind, normalizeId(id, label));
@@ -1237,7 +1265,9 @@ export async function validateWorkspace(root) {
     "relationship",
     "task",
     "artifact",
-    "provider"
+    "provider",
+    "skill",
+    "research"
   ]);
   const required = [
     ".awb/workspace.json",
@@ -1427,6 +1457,38 @@ export async function validateWorkspace(root) {
       if (!resolved.exists) warnings.push(`Artifact file is unavailable: ${artifact.id}`);
     } catch (error) {
       errors.push(`Artifact ${artifact.id}: ${error.message}`);
+    }
+  }
+
+  for (const skillId of await listCapabilities(root, "skill")) {
+    const relativePath = `skills/${skillId}/skill.json`;
+    if (!(await exists(path.join(root, relativePath)))) {
+      warnings.push(`Skill has no contract: ${relativePath}`);
+      continue;
+    }
+    try {
+      const contract = await readJson(root, relativePath);
+      errors.push(...validateAgainstSchema(contract, schemas.skill, `Skill contract ${skillId}`));
+      if (contract.id !== skillId) {
+        errors.push(`Skill contract ${skillId} declares a different id: ${contract.id}`);
+      }
+    } catch (error) {
+      errors.push(`Skill contract ${skillId}: ${error.message}`);
+    }
+  }
+
+  // Read the directory here rather than importing core/research.js: research.js
+  // imports this module, and a cycle would be fragile for no gain.
+  const researchDirectory = path.join(root, "work", "research");
+  if (await exists(researchDirectory)) {
+    const files = (await readdir(researchDirectory)).filter((file) => file.endsWith(".json")).sort();
+    for (const file of files) {
+      try {
+        const record = await readJson(root, `work/research/${file}`);
+        errors.push(...validateAgainstSchema(record, schemas.research, `Research ${record.id ?? file}`));
+      } catch (error) {
+        errors.push(`Research ${file}: ${error.message}`);
+      }
     }
   }
 

@@ -19,7 +19,7 @@ import {
   getRelationships,
   initWorkspace,
   listArtifacts,
-  listCapabilities,
+  listCapabilityEntries,
   listKnowledge,
   listProposals,
   listTasks,
@@ -29,6 +29,7 @@ import {
   profileStatus,
   proposeMemory,
   readKnowledge,
+  readSkillContract,
   rejectMemory,
   resolveProject,
   searchKnowledge,
@@ -438,20 +439,37 @@ async function researchCommand(root, action, positionals, parsed) {
 
 async function capabilityCommand(root, kind, action, positionals) {
   if (action === "list") {
-    const items = await listCapabilities(root, kind);
+    const entries = await listCapabilityEntries(root, kind);
     return {
-      data: items,
-      text: () => (items.length ? items.map((item) => `- ${item}`).join("\n") : `No ${kind}s found.`)
+      data: entries,
+      text: () =>
+        entries.length
+          ? entries.map((entry) => `- ${entry.id}${entry.useWhen ? ` — ${entry.useWhen}` : ""}`).join("\n")
+          : `No ${kind}s found.`
     };
   }
   if (action === "show") {
     const id = positionals[0];
     if (!id) throw new Error(`Usage: awb ${kind} show <${kind}-id>`);
     const capability = await showCapability(root, kind, id);
+    const contract = kind === "skill" ? await readSkillContract(root, capability.id).catch(() => null) : null;
     return {
-      data: capability,
-      text: () =>
-        [`${kind}: ${capability.id}`, `Path: ${capability.path}`, "Files:", ...capability.files.map((file) => `- ${file}`)].join("\n")
+      data: { ...capability, contract },
+      text: () => {
+        const lines = [`${kind}: ${capability.id}`];
+        if (contract) {
+          lines.push(`Title: ${contract.title}`, `Use when: ${contract.useWhen}`);
+          for (const [label, items] of [
+            ["Inputs", contract.inputs],
+            ["Outputs", contract.outputs],
+            ["Verify", contract.verify]
+          ]) {
+            if ((items ?? []).length) lines.push(`${label}:`, ...items.map((item) => `- ${item}`));
+          }
+        }
+        lines.push(`Path: ${capability.path}`, "Files:", ...capability.files.map((file) => `- ${file}`));
+        return lines.join("\n");
+      }
     };
   }
   throw new Error(`Usage: awb ${kind} list|show`);
@@ -1020,6 +1038,12 @@ function formatTaskContext(context) {
   lines.push(`Secret policy: ${task.secretPolicy || "runtime-only"}`);
   if (context.roleFiles.length) lines.push("Role files:", ...context.roleFiles.map((item) => `- ${item}`));
   if (context.skillFiles.length) lines.push("Skill files:", ...context.skillFiles.map((item) => `- ${item}`));
+  if ((context.skillContracts ?? []).length) {
+    lines.push(
+      "Skill contracts:",
+      ...context.skillContracts.map((item) => `- ${item.id}: ${item.useWhen}`)
+    );
+  }
   if (context.workflowFiles.length) lines.push("Workflow files:", ...context.workflowFiles.map((item) => `- ${item}`));
   if (context.relationships.length) {
     lines.push(

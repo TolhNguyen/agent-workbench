@@ -179,15 +179,15 @@ test("migrate installs the starter catalog into a workspace that predates it", a
   assert.ok(migrated.catalogFilesWritten > 0, "expected catalog files to be installed");
 
   assert.deepEqual(
-    JSON.parse(awb(["--root", root, "--json", "role", "list"]).stdout),
+    JSON.parse(awb(["--root", root, "--json", "role", "list"]).stdout).map((entry) => entry.id),
     ["developer", "reviewer", "technical-writer"]
   );
   assert.deepEqual(
-    JSON.parse(awb(["--root", root, "--json", "skill", "list"]).stdout),
+    JSON.parse(awb(["--root", root, "--json", "skill", "list"]).stdout).map((entry) => entry.id),
     ["code-review", "debugging", "writing-user-guide"]
   );
   assert.deepEqual(
-    JSON.parse(awb(["--root", root, "--json", "workflow", "list"]).stdout),
+    JSON.parse(awb(["--root", root, "--json", "workflow", "list"]).stdout).map((entry) => entry.id),
     ["document-delivery", "feature-delivery"]
   );
 
@@ -285,8 +285,11 @@ test("validate detects unavailable project sources as warnings without invalidat
   assert.equal(result.status, 0, result.stderr);
   const validation = JSON.parse(result.stdout);
   assert.equal(validation.valid, true);
-  assert.equal(validation.warnings.length, 1);
-  assert.match(validation.warnings[0], /Project source is unavailable/);
+  // Filtered rather than an exact warnings count: the shipped starter catalog's
+  // skills have no contracts yet (Task 5 gives them one), so `validate` also
+  // warns about those, and this test is about project sources, not skills.
+  const projectWarnings = validation.warnings.filter((message) => message.includes("Project source is unavailable"));
+  assert.equal(projectWarnings.length, 1);
 });
 
 // The distributed repository ships the tool and the shared catalog, and
@@ -925,11 +928,11 @@ test("capability catalogs are discoverable for every kind", async () => {
   const root = await initializedWorkspace();
 
   assert.deepEqual(
-    JSON.parse(awb(["--root", root, "--json", "skill", "list"]).stdout),
+    JSON.parse(awb(["--root", root, "--json", "skill", "list"]).stdout).map((entry) => entry.id),
     ["code-review", "debugging", "writing-user-guide"]
   );
   assert.deepEqual(
-    JSON.parse(awb(["--root", root, "--json", "workflow", "list"]).stdout),
+    JSON.parse(awb(["--root", root, "--json", "workflow", "list"]).stdout).map((entry) => entry.id),
     ["document-delivery", "feature-delivery"]
   );
 
@@ -1291,6 +1294,108 @@ test("concluding research routes through the existing memory approval path", asy
   assert.match(again.stderr, /it is concluded/);
 
   assertSuccess(awb(["--root", root, "validate"]));
+});
+
+test("a skill contract tells an agent when to use the skill", async () => {
+  const root = await onboardedWorkspace();
+
+  // Two skills created by this test, not shipped ones: Task 5 gives every
+  // shipped skill a contract, so asserting "this shipped skill has none" would
+  // break one task later.
+  await mkdir(path.join(root, "skills", "local-contracted"), { recursive: true });
+  await writeFile(
+    path.join(root, "skills", "local-contracted", "SKILL.md"),
+    "# Skill: Local Contracted\n\nRead the docs first.\n",
+    "utf8"
+  );
+  await writeFile(
+    path.join(root, "skills", "local-contracted", "skill.json"),
+    JSON.stringify(
+      {
+        id: "local-contracted",
+        title: "Local Contracted",
+        useWhen: "Connecting our system to a third-party API.",
+        verify: ["one real read call succeeds"]
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+  await mkdir(path.join(root, "skills", "local-bare"), { recursive: true });
+  await writeFile(path.join(root, "skills", "local-bare", "SKILL.md"), "# Skill: Local Bare\n", "utf8");
+
+  const listed = JSON.parse(awb(["--root", root, "--json", "skill", "list"]).stdout);
+  const contracted = listed.find((entry) => entry.id === "local-contracted");
+  assert.equal(contracted.useWhen, "Connecting our system to a third-party API.");
+  assert.equal(contracted.title, "Local Contracted");
+  const bare = listed.find((entry) => entry.id === "local-bare");
+  assert.equal(bare.useWhen, undefined, "a skill without a contract carries no useWhen");
+
+  const shown = awb(["--root", root, "skill", "show", "local-contracted"]);
+  assertSuccess(shown);
+  assert.match(shown.stdout, /Use when: Connecting our system to a third-party API\./);
+
+  // A skill with no contract still shows, it simply has no contract section.
+  assertSuccess(awb(["--root", root, "skill", "show", "local-bare"]));
+
+  assertSuccess(
+    awb([
+      "--root", root, "project", "add", "app", "--path", "src/app", "--create"
+    ])
+  );
+  assertSuccess(
+    awb([
+      "--root", root, "task", "create", "--id", "TASK-ROUTE", "--title", "Route",
+      "--role", "developer", "--project", "app", "--skill", "local-contracted"
+    ])
+  );
+  const context = awb(["--root", root, "task", "context", "TASK-ROUTE"]);
+  assertSuccess(context);
+  assert.match(context.stdout, /Connecting our system to a third-party API\./);
+});
+
+test("validate warns for a missing skill contract and errors for a malformed one", async () => {
+  const root = await initializedWorkspace();
+
+  let validation = JSON.parse(awb(["--root", root, "--json", "validate"]).stdout);
+  assert.equal(validation.valid, true, validation.errors.join("; "));
+
+  await mkdir(path.join(root, "skills", "broken"), { recursive: true });
+  await writeFile(path.join(root, "skills", "broken", "SKILL.md"), "# Broken\n", "utf8");
+  validation = JSON.parse(awb(["--root", root, "--json", "validate"]).stdout);
+  assert.equal(validation.valid, true, "a missing contract is a warning, not an error");
+  assert.equal(
+    validation.warnings.some((message) => message.includes("skills/broken/skill.json")),
+    true,
+    validation.warnings.join("; ")
+  );
+
+  await writeFile(
+    path.join(root, "skills", "broken", "skill.json"),
+    JSON.stringify({ id: "broken", title: "Broken" }, null, 2),
+    "utf8"
+  );
+  validation = JSON.parse(awb(["--root", root, "--json", "validate"]).stdout);
+  assert.equal(validation.valid, false, "a contract missing useWhen is an error");
+  assert.equal(
+    validation.errors.some((message) => message.includes("useWhen")),
+    true,
+    validation.errors.join("; ")
+  );
+
+  await writeFile(
+    path.join(root, "skills", "broken", "skill.json"),
+    JSON.stringify({ id: "something-else", title: "Broken", useWhen: "Never." }, null, 2),
+    "utf8"
+  );
+  validation = JSON.parse(awb(["--root", root, "--json", "validate"]).stdout);
+  assert.equal(validation.valid, false, "a contract naming a different skill is an error");
+  assert.equal(
+    validation.errors.some((message) => message.includes("declares a different id")),
+    true,
+    validation.errors.join("; ")
+  );
 });
 
 function awb(args) {
