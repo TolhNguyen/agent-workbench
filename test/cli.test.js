@@ -1209,13 +1209,19 @@ test("research runs before any project exists and before onboarding", async () =
   assert.equal(record.status, "open");
   assert.deepEqual(record.plan, ["Read the webhook docs"]);
 
-  assertSuccess(
-    awb([
-      "--root", root, "research", "attempt", record.id,
-      "--tried", "Poll the orders endpoint", "--result", "failed",
-      "--note", "429 after 40 requests"
-    ])
-  );
+  const firstAttempt = awb([
+    "--root", root, "--json", "research", "attempt", record.id,
+    "--tried", "Poll the orders endpoint", "--result", "failed",
+    "--note", "429 after 40 requests"
+  ]);
+  assertSuccess(firstAttempt);
+  const firstAttemptOutcome = JSON.parse(firstAttempt.stdout);
+  assert.equal(firstAttemptOutcome.attempt.n, 1);
+  assert.equal(firstAttemptOutcome.attempt.result, "failed");
+  assert.match(firstAttemptOutcome.attempt.note, /429/);
+  assert.equal(firstAttemptOutcome.research.attempts.length, 1);
+  assert.deepEqual(firstAttemptOutcome.research.attempts[0], firstAttemptOutcome.attempt);
+
   assertSuccess(
     awb([
       "--root", root, "research", "attempt", record.id,
@@ -1239,7 +1245,13 @@ test("research runs before any project exists and before onboarding", async () =
     0
   );
 
-  assertSuccess(awb(["--root", root, "research", "abandon", record.id, "--reason", "Answered by docs"]));
+  const abandoned = awb([
+    "--root", root, "--json", "research", "abandon", record.id, "--reason", "Answered by docs"
+  ]);
+  assertSuccess(abandoned);
+  const abandonedRecord = JSON.parse(abandoned.stdout);
+  assert.equal(abandonedRecord.status, "abandoned");
+  assert.equal(abandonedRecord.id, record.id);
   const closed = awb([
     "--root", root, "research", "attempt", record.id, "--tried", "x", "--result", "passed"
   ]);
