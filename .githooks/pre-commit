@@ -1,0 +1,68 @@
+#!/bin/sh
+# Refuse to commit personal workspace state into the DISTRIBUTION repository.
+#
+# Why this exists: these seven paths are created by `awb init` in every fork and
+# rewritten as a person works -- `.awb/workspace.json` changes its updatedAt
+# after every write command. If the distribution tracks them, every fork
+# conflicts on `git pull upstream main`, on files that have nothing to do with
+# the update being pulled. An employee who is not fluent in git stops there, and
+# that pull is the only channel shared skills travel through.
+#
+# They are deliberately left on disk and un-ignored so that a FORK can commit
+# its own state. That is exactly what makes `git add -A` in the distribution a
+# one-command way to undo the separation -- which is what happened in 8d5ec1a.
+#
+# This hook is inert in a fork: it only fires when `origin` is the canonical
+# distribution repository.
+
+PERSONAL_PATHS="
+.awb/workspace.json
+knowledge/index.json
+knowledge/providers.json
+projects/index.json
+relationships/index.json
+user/PROFILE.md
+work/artifacts/index.json
+"
+
+DISTRIBUTION_REMOTE="TolhNguyen/agent-workbench"
+
+origin_url=$(git config --get remote.origin.url 2>/dev/null)
+case "$origin_url" in
+  *"$DISTRIBUTION_REMOTE"*) ;;
+  *) exit 0 ;;   # Not the distribution -- this is somebody's workspace fork.
+esac
+
+# --diff-filter=d ignores deletions, so removing these paths is always allowed.
+staged=$(git diff --cached --name-only --diff-filter=d)
+
+offenders=""
+for path in $PERSONAL_PATHS; do
+  for entry in $staged; do
+    [ "$entry" = "$path" ] && offenders="$offenders  $path
+"
+  done
+done
+
+if [ -n "$offenders" ]; then
+  printf '%s\n' "Refusing to commit: personal workspace state does not belong in the distribution."
+  printf '%s\n' ""
+  printf '%s' "$offenders"
+  printf '%s\n' ""
+  printf '%s\n' "These are created by \`awb init\` in each fork. Tracking them here makes every"
+  printf '%s\n' "fork conflict on \`git pull upstream main\`. This usually happens by running"
+  printf '%s\n' "\`git add -A\`, which picks them up because they sit on disk un-ignored so that"
+  printf '%s\n' "a fork can commit its own copies."
+  printf '%s\n' ""
+  printf '%s\n' "Unstage them and commit again:"
+  printf '%s\n' ""
+  printf '%s\n' "  git restore --staged .awb/workspace.json knowledge/index.json \\"
+  printf '%s\n' "    knowledge/providers.json projects/index.json relationships/index.json \\"
+  printf '%s\n' "    user/PROFILE.md work/artifacts/index.json"
+  printf '%s\n' ""
+  printf '%s\n' "The test \`the distributed repository ships no personal workspace state\` in"
+  printf '%s\n' "test/cli.test.js checks the same thing, so \`npm test\` catches it too."
+  exit 1
+fi
+
+exit 0
