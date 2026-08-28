@@ -5,12 +5,22 @@ Format version: `0.3`
 
 ## 1. Product model
 
-An Agent Workbench is one self-hosted repository. The repository is both:
+An Agent Workbench is one self-hosted repository, distributed and used in two
+distinct roles:
 
-1. the implementation and standard used to manage the Workbench; and
-2. the user's working environment containing experience and related sources.
+1. **The distribution** carries the implementation, the standard, and the
+   shared capability catalog. It holds no personal state and is not itself a
+   workspace.
+2. **A workspace** is a fork of the distribution on which `awb init` has been
+   run. It holds one person's profile, projects, tasks, artifacts, and
+   knowledge, none of which the distribution tracks.
 
-An agent harness opens the Workbench root. It does not open one source directly.
+Keeping the two apart is what lets a workspace pull distribution updates: git
+conflicts only where both sides changed a file, and the distribution never
+touches a workspace's own files.
+
+An agent harness opens the workspace root. It does not open one source
+directly.
 
 The Core is harness-neutral. A harness may create its native instruction file
 at the root, but such files are not required canonical data.
