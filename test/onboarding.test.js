@@ -1,9 +1,17 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { assertQuestionCatalogs } from "../core/core.js";
+import {
+  abandonResearch,
+  addResearchAttempt,
+  getResearch,
+  listResearch,
+  startResearch
+} from "../core/research.js";
 import { CAPABILITY_CATALOG } from "../core/templates.js";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -27,6 +35,64 @@ test("a question naming an unknown catalog fails loudly instead of throwing insi
     () => assertQuestionCatalogs(questions, catalog),
     /"role".*unknown catalog: "role".*Valid catalogs: roles, skills, workflows/s
   );
+});
+
+test("a research record tracks its question, plan, and attempt log", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "awb-research-"));
+  try {
+    await mkdir(path.join(root, ".awb"), { recursive: true });
+    await writeFile(
+      path.join(root, ".awb", "workspace.json"),
+      JSON.stringify({ formatVersion: "0.3", name: "T", createdAt: "2026-01-01T00:00:00.000Z" }),
+      "utf8"
+    );
+
+    const started = await startResearch(root, {
+      question: "Does Shopify push order webhooks?",
+      plan: ["Read the webhook docs"],
+      tags: ["shopify"]
+    });
+    assert.match(started.id, /^RESEARCH-/);
+    assert.equal(started.status, "open");
+    assert.deepEqual(started.attempts, []);
+    assert.equal(started.conclusion, null);
+
+    const first = await addResearchAttempt(root, started.id, {
+      tried: "Poll the orders endpoint",
+      result: "failed",
+      note: "429 after 40 requests"
+    });
+    assert.equal(first.attempt.n, 1);
+    const second = await addResearchAttempt(root, started.id, {
+      tried: "Subscribe to orders/create",
+      result: "passed"
+    });
+    assert.equal(second.attempt.n, 2);
+    assert.equal(second.attempt.note, null);
+
+    const reloaded = await getResearch(root, started.id.toLowerCase());
+    assert.equal(reloaded.attempts.length, 2);
+    assert.equal(reloaded.attempts[0].result, "failed");
+
+    await assert.rejects(
+      () => addResearchAttempt(root, started.id, { tried: "x", result: "maybe" }),
+      /Attempt result must be passed, failed, or partial/
+    );
+    await assert.rejects(() => startResearch(root, {}), /Research question is required/);
+    await assert.rejects(() => getResearch(root, "RESEARCH-NOPE"), /Unknown research record: RESEARCH-NOPE/);
+
+    const abandoned = await abandonResearch(root, started.id, { reason: "Answered elsewhere" });
+    assert.equal(abandoned.status, "abandoned");
+    await assert.rejects(
+      () => addResearchAttempt(root, started.id, { tried: "x", result: "passed" }),
+      /it is abandoned/
+    );
+
+    assert.equal((await listResearch(root)).length, 1);
+    assert.equal((await listResearch(root, { status: "open" })).length, 0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 // There is deliberately no pin for user/PROFILE.md here. The repository used

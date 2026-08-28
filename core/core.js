@@ -1455,7 +1455,7 @@ function normalizeKnowledgeResourceId(value) {
   return id;
 }
 
-function unique(values) {
+export function unique(values) {
   return [...new Set(values.filter((value) => value !== undefined && value !== null && value !== ""))];
 }
 

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-workbench.local/schemas/research.schema.json",
+  "title": "Agent Workbench Research Record",
+  "type": "object",
+  "required": ["id", "status", "question", "attempts"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[A-Z0-9][A-Z0-9._-]*$" },
+    "status": { "enum": ["open", "concluded", "abandoned"] },
+    "question": { "type": "string", "minLength": 1 },
+    "plan": { "type": "array", "items": { "type": "string" } },
+    "attempts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["n", "tried", "result"],
+        "properties": {
+          "n": { "type": "integer", "minimum": 1 },
+          "tried": { "type": "string", "minLength": 1 },
+          "result": { "enum": ["passed", "failed", "partial"] },
+          "note": { "type": ["string", "null"] },
+          "at": { "type": "string", "format": "date-time" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "conclusion": { "type": ["string", "null"] },
+    "proposalId": { "type": ["string", "null"] },
+    "abandonReason": { "type": ["string", "null"] },
+    "tags": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": true
+}
