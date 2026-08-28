@@ -289,14 +289,32 @@ test("validate detects unavailable project sources as warnings without invalidat
   assert.match(validation.warnings[0], /Project source is unavailable/);
 });
 
-test("the distributed repository is itself a valid single-root workspace", async () => {
-  const result = awb(["--root", repositoryRoot, "--json", "validate"]);
-  assert.equal(result.status, 0, result.stderr);
-  const validation = JSON.parse(result.stdout);
-  assert.equal(validation.valid, true);
+// The distributed repository ships the tool and the shared catalog, and
+// nothing personal. Employees fork it, so anything the repository tracks AND a
+// fork edits conflicts on every `git pull upstream main` -- `.awb/workspace.json`
+// worst of all, since its updatedAt changes after every write command. Keeping
+// personal state out of the distribution is what makes the fork model work.
+test("the distributed repository ships no personal workspace state", async () => {
+  for (const personal of [
+    ".awb/workspace.json",
+    "user/PROFILE.md",
+    "projects/index.json",
+    "relationships/index.json",
+    "knowledge/index.json",
+    "knowledge/providers.json",
+    "work/artifacts/index.json"
+  ]) {
+    const tracked = spawnSync("git", ["ls-files", "--error-unmatch", personal], {
+      cwd: repositoryRoot,
+      encoding: "utf8"
+    });
+    assert.notEqual(tracked.status, 0, `${personal} must not be tracked by the distributed repository`);
+  }
+
+  // The tool and the shared catalog do ship.
   assert.equal(await fileExists(path.join(repositoryRoot, "core", "core.js")), true);
   assert.equal(await fileExists(path.join(repositoryRoot, "src", "core.js")), false);
-  assert.equal(await fileExists(path.join(repositoryRoot, ".awb", "workspace.json")), true);
+  assert.equal(await fileExists(path.join(repositoryRoot, "roles", "developer", "ROLE.md")), true);
   assert.equal(await fileExists(path.join(repositoryRoot, "AGENTS.md")), false);
   assert.equal(await fileExists(path.join(repositoryRoot, "CLAUDE.md")), false);
 });

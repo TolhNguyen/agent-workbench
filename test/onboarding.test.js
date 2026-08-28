@@ -4,7 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { assertQuestionCatalogs } from "../core/core.js";
-import { CAPABILITY_CATALOG, USER_PROFILE } from "../core/templates.js";
+import { CAPABILITY_CATALOG } from "../core/templates.js";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -29,16 +29,12 @@ test("a question naming an unknown catalog fails loudly instead of throwing insi
   );
 });
 
-// The repository is itself an initialized workspace (see the "distributed
-// repository" test in cli.test.js), so its committed user/PROFILE.md is the
-// one every employee's clone starts with. If it silently drifts from the
-// USER_PROFILE template, `completeProfile` sees an "edited" file that no one
-// actually edited and refuses onboarding with a false accusation. This pins
-// the two together so drift fails the suite instead of shipping.
-test("the committed user/PROFILE.md is byte-identical to the USER_PROFILE template", async () => {
-  const committed = await readFile(path.join(repositoryRoot, "user", "PROFILE.md"), "utf8");
-  assert.equal(committed.trim(), USER_PROFILE.trim());
-});
+// There is deliberately no pin for user/PROFILE.md here. The repository used
+// to ship one, it drifted from the USER_PROFILE template, and `completeProfile`
+// then refused onboarding by accusing the employee of editing a file they had
+// never opened. The file is no longer distributed at all -- `awb init` writes it
+// from the template in each fork -- so the drift it guarded against cannot
+// happen. Do not "restore" the pin; restoring the file is what caused the bug.
 
 // Same class of drift, generalized to the whole starter catalog: every file
 // CAPABILITY_CATALOG describes is also committed to the repository root

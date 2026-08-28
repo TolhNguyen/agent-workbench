@@ -7,8 +7,11 @@ một việc mới, trợ lý AI không phải đoán lại từ đầu.
 Toàn bộ nằm trong một thư mục duy nhất trên máy bạn. Không server, không
 database, không cần kết nối mạng để chạy.
 
-> Bạn đang cầm bản đã cài sẵn. **Không tạo workspace mới ở nơi khác** — cứ mở
-> thẳng thư mục này bằng Claude Code, Codex, hoặc trợ lý AI nào đọc được tệp.
+> Repo này là **công cụ dùng chung**, chưa phải không gian làm việc của bạn.
+> Fork về, chạy `node bin/awb.js init --root .` một lần (Bước 1 bên dưới), và
+> mọi thứ riêng của bạn — hồ sơ, dự án, việc, kiến thức — sẽ nằm trong bản fork
+> đó. Repo gốc không giữ dữ liệu của ai, nên bạn kéo cập nhật về lúc nào cũng
+> được mà không bị xung đột.
 
 ---
 
@@ -28,10 +31,19 @@ bạn đang đứng sai thư mục — hãy `cd` vào thư mục chứa tệp n�
 
 Mọi lệnh dưới đây đều chạy từ thư mục này.
 
-### Bước 1 — Kiểm tra không gian làm việc còn nguyên vẹn
+### Bước 1 — Khởi tạo không gian làm việc của bạn
+
+Chạy **một lần duy nhất** sau khi fork về:
 
 ```bash
+node bin/awb.js init --root .
 node bin/awb.js validate
+```
+
+Nếu bỏ qua bước này, mọi lệnh sẽ báo:
+
+```text
+Error: No Agent Workbench found. Run `awb init` or pass --root.
 ```
 
 ```text
