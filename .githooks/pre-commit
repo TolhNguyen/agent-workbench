@@ -9,8 +9,9 @@
 # that pull is the only channel shared skills travel through.
 #
 # They are deliberately left on disk and un-ignored so that a FORK can commit
-# its own state. That is exactly what makes `git add -A` in the distribution a
-# one-command way to undo the separation -- which is what happened in 8d5ec1a.
+# its own state. That is exactly what makes `git add -A`, or ticking every box
+# in a git GUI, a one-gesture way to undo the separation -- which is what
+# happened in 8d5ec1a.
 #
 # This hook is inert in a fork: it only fires when `origin` is the canonical
 # distribution repository.
@@ -44,25 +45,31 @@ for path in $PERSONAL_PATHS; do
   done
 done
 
-if [ -n "$offenders" ]; then
-  printf '%s\n' "Refusing to commit: personal workspace state does not belong in the distribution."
-  printf '%s\n' ""
-  printf '%s' "$offenders"
-  printf '%s\n' ""
-  printf '%s\n' "These are created by \`awb init\` in each fork. Tracking them here makes every"
-  printf '%s\n' "fork conflict on \`git pull upstream main\`. This usually happens by running"
-  printf '%s\n' "\`git add -A\`, which picks them up because they sit on disk un-ignored so that"
-  printf '%s\n' "a fork can commit its own copies."
-  printf '%s\n' ""
-  printf '%s\n' "Unstage them and commit again:"
-  printf '%s\n' ""
-  printf '%s\n' "  git restore --staged .awb/workspace.json knowledge/index.json \\"
-  printf '%s\n' "    knowledge/providers.json projects/index.json relationships/index.json \\"
-  printf '%s\n' "    user/PROFILE.md work/artifacts/index.json"
-  printf '%s\n' ""
-  printf '%s\n' "The test \`the distributed repository ships no personal workspace state\` in"
-  printf '%s\n' "test/cli.test.js checks the same thing, so \`npm test\` catches it too."
-  exit 1
-fi
+[ -z "$offenders" ] && exit 0
 
-exit 0
+cat <<'HEADER'
+Refusing to commit: personal workspace state does not belong in the distribution.
+HEADER
+printf '\n%s\n' "$offenders"
+cat <<'BODY'
+These are created by `awb init` in each fork. Tracking them here makes every
+fork conflict on `git pull upstream main`.
+
+In GitHub Desktop or any git GUI: untick those files, then commit.
+
+In a terminal, unstage them and commit again:
+
+  git restore --staged .awb/workspace.json knowledge/index.json \
+    knowledge/providers.json projects/index.json relationships/index.json \
+    user/PROFILE.md work/artifacts/index.json
+
+If all seven keep reappearing as changes every time you open the repository,
+this clone has not excluded them, and they will keep inviting this mistake.
+Add them to .git/info/exclude -- that file is local to this clone and is never
+pushed, so a fork, where these files SHOULD be committed, is unaffected.
+
+The test `the distributed repository ships no personal workspace state` in
+test/cli.test.js checks the same thing, so `npm test` catches it too.
+BODY
+
+exit 1
