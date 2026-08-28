@@ -1189,6 +1189,65 @@ test("a fresh workspace tells the agent to run the interview first", async () =>
   assert.match(repoStartHere, /awb profile status/);
 });
 
+test("research runs before any project exists and before onboarding", async () => {
+  const root = await initializedWorkspace();
+
+  // Deliberately not onboarded and with no project registered: research is what
+  // tells you whether a project is worth creating.
+  const started = awb([
+    "--root", root, "--json", "research", "start",
+    "--question", "Does Shopify push order webhooks?",
+    "--plan", "Read the webhook docs",
+    "--tag", "shopify"
+  ]);
+  assertSuccess(started);
+  const record = JSON.parse(started.stdout);
+  assert.match(record.id, /^RESEARCH-/);
+  assert.equal(record.status, "open");
+  assert.deepEqual(record.plan, ["Read the webhook docs"]);
+
+  assertSuccess(
+    awb([
+      "--root", root, "research", "attempt", record.id,
+      "--tried", "Poll the orders endpoint", "--result", "failed",
+      "--note", "429 after 40 requests"
+    ])
+  );
+  assertSuccess(
+    awb([
+      "--root", root, "research", "attempt", record.id,
+      "--tried", "Subscribe to orders/create", "--result", "passed"
+    ])
+  );
+
+  const shown = JSON.parse(awb(["--root", root, "--json", "research", "show", record.id]).stdout);
+  assert.equal(shown.attempts.length, 2);
+  assert.equal(shown.attempts[0].n, 1);
+  assert.equal(shown.attempts[0].result, "failed");
+  assert.match(shown.attempts[0].note, /429/);
+
+  const text = awb(["--root", root, "research", "show", record.id]);
+  assertSuccess(text);
+  assert.match(text.stdout, /429 after 40 requests/, "the attempt log must be visible without --json");
+
+  assert.equal(JSON.parse(awb(["--root", root, "--json", "research", "list"]).stdout).length, 1);
+  assert.equal(
+    JSON.parse(awb(["--root", root, "--json", "research", "list", "--status", "abandoned"]).stdout).length,
+    0
+  );
+
+  assertSuccess(awb(["--root", root, "research", "abandon", record.id, "--reason", "Answered by docs"]));
+  const closed = awb([
+    "--root", root, "research", "attempt", record.id, "--tried", "x", "--result", "passed"
+  ]);
+  assert.equal(closed.status, 1);
+  assert.match(closed.stderr, /it is abandoned/);
+
+  const missing = awb(["--root", root, "research", "show", "RESEARCH-NOPE"]);
+  assert.equal(missing.status, 1);
+  assert.match(missing.stderr, /Unknown research record: RESEARCH-NOPE/);
+});
+
 function awb(args) {
   return spawnSync(process.execPath, [cli, ...args], {
     cwd: repositoryRoot,

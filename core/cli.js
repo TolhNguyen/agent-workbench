@@ -40,6 +40,13 @@ import {
 } from "./core.js";
 import { buildProfile } from "./profile.js";
 import { callProviderTool, listProviderTools, probeProvider, recallCoreMemory, searchProvider } from "./providers.js";
+import {
+  abandonResearch,
+  addResearchAttempt,
+  getResearch,
+  listResearch,
+  startResearch
+} from "./research.js";
 
 // Boolean flags are recognised globally rather than per command: the command is
 // only known once positionals are parsed, and whether a flag consumes the next
@@ -63,6 +70,11 @@ const COMMAND_OPTIONS = {
   "project resolve": [],
   "relation add": ["id", "description", "contract", "tag", "last-verified"],
   "relation list": [],
+  "research start": ["id", "question", "plan", "tag"],
+  "research attempt": ["tried", "result", "note"],
+  "research abandon": ["reason"],
+  "research list": ["status"],
+  "research show": [],
   "role list": [],
   "role show": [],
   "skill list": [],
@@ -177,6 +189,9 @@ async function dispatch({ io, parsed, group, action, positionals, wantsJson }) {
       break;
     case "relation":
       command = await relationCommand(root, action, positionals, parsed);
+      break;
+    case "research":
+      command = await researchCommand(root, action, positionals, parsed);
       break;
     case "role":
     case "skill":
@@ -349,6 +364,60 @@ async function relationCommand(root, action, positionals, parsed) {
     };
   }
   throw new Error("Usage: awb relation add|list");
+}
+
+async function researchCommand(root, action, positionals, parsed) {
+  if (action === "start") {
+    const record = await startResearch(root, {
+      id: positionals[0] || value(parsed, "id"),
+      question: value(parsed, "question"),
+      plan: values(parsed, "plan"),
+      tags: values(parsed, "tag")
+    });
+    return {
+      data: record,
+      text: () => `Research started: ${record.id}\nQuestion: ${record.question}`
+    };
+  }
+  if (action === "attempt") {
+    const id = positionals[0];
+    if (!id) throw new Error("Usage: awb research attempt <research-id> --tried <text> --result passed|failed|partial");
+    const result = await addResearchAttempt(root, id, {
+      tried: value(parsed, "tried"),
+      result: value(parsed, "result"),
+      note: value(parsed, "note")
+    });
+    return {
+      data: result,
+      text: () =>
+        `Attempt ${result.attempt.n} recorded on ${result.research.id}: ${result.attempt.result}`
+    };
+  }
+  if (action === "abandon") {
+    const id = positionals[0];
+    if (!id) throw new Error("Usage: awb research abandon <research-id> [--reason <text>]");
+    const record = await abandonResearch(root, id, { reason: value(parsed, "reason") });
+    return { data: record, text: () => `Research abandoned: ${record.id}` };
+  }
+  if (action === "list") {
+    const records = await listResearch(root, { status: value(parsed, "status") });
+    return {
+      data: records,
+      text: () =>
+        records.length
+          ? records
+              .map((item) => `- ${item.id} [${item.status}] ${item.question} · ${item.attempts.length} attempts`)
+              .join("\n")
+          : "No research records found."
+    };
+  }
+  if (action === "show") {
+    const id = positionals[0];
+    if (!id) throw new Error("Usage: awb research show <research-id>");
+    const record = await getResearch(root, id);
+    return { data: record, text: () => formatResearch(record) };
+  }
+  throw new Error("Usage: awb research start|attempt|conclude|abandon|list|show");
 }
 
 async function capabilityCommand(root, kind, action, positionals) {
@@ -859,6 +928,30 @@ function formatValidation(result) {
   return lines.join("\n");
 }
 
+function formatResearch(record) {
+  const lines = [
+    `Research: ${record.id} [${record.status}]`,
+    `Question: ${record.question}`
+  ];
+  if ((record.plan ?? []).length) lines.push("Plan:", ...record.plan.map((step) => `- ${step}`));
+  if ((record.attempts ?? []).length) {
+    lines.push(
+      "Attempts:",
+      ...record.attempts.map(
+        (attempt) =>
+          `- ${attempt.n}. [${attempt.result}] ${attempt.tried}` +
+          (attempt.note ? `\n     ${attempt.note}` : "")
+      )
+    );
+  } else {
+    lines.push("Attempts: none recorded");
+  }
+  if (record.conclusion) lines.push("Conclusion:", record.conclusion);
+  if (record.proposalId) lines.push(`Proposal awaiting approval: ${record.proposalId}`);
+  if (record.abandonReason) lines.push(`Abandoned because: ${record.abandonReason}`);
+  return lines.join("\n");
+}
+
 function formatProfileStatus(status) {
   if (status.complete) {
     return [
@@ -970,6 +1063,8 @@ Commands:
   project add|list|relations|resolve
                                Manage managed, submodule, and external sources
   relation add|list            Manage typed project relationships
+  research start|attempt|conclude|abandon|list|show
+                               Answer a question before committing to a project
   role|skill|workflow list|show
                                Inspect the capability catalog
   task create|list|context|gate-pass|verify|close
@@ -1006,6 +1101,16 @@ Exit codes:
     relation: `Relationship commands:
   awb relation add <from> <type> <to> [--description <text>] [--contract <path>]
   awb relation list`,
+    research: `Research commands:
+  awb research start [<id>] --question <text> [--plan <step>] [--tag <tag>]
+  awb research attempt <id> --tried <text> --result passed|failed|partial [--note <text>]
+  awb research conclude <id> --text <text> [--title <text>] [--scope <scope>]
+  awb research abandon <id> [--reason <text>]
+  awb research list [--status open|concluded|abandoned]
+  awb research show <id>
+
+Research needs no project and is not gated on onboarding: it is what tells you
+whether a project is worth creating.`,
     role: `Role commands:
   awb role list
   awb role show <role-id>`,
